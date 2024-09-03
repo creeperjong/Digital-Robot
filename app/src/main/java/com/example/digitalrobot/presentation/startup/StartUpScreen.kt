@@ -28,9 +28,8 @@ fun StartUpScreen(
 ) {
     Column(
         modifier = Modifier
-            .fillMaxSize()
             .padding(MediumPadding)
-            .statusBarsPadding()
+            .fillMaxSize()
     ) {
         TextField(
             value = "",
@@ -44,7 +43,7 @@ fun StartUpScreen(
             onClick = { /*TODO*/ },
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White
+                contentColor = MaterialTheme.colorScheme.onPrimary
             ),
             shape = MaterialTheme.shapes.large,
             modifier = Modifier
@@ -56,7 +55,7 @@ fun StartUpScreen(
         Button(onClick = { /*TODO*/ },
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White
+                contentColor = MaterialTheme.colorScheme.onPrimary
             ),
             shape = MaterialTheme.shapes.large,
             modifier = Modifier
