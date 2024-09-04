@@ -16,9 +16,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.view.WindowCompat
+import com.example.digitalrobot.presentation.nav.NavGraph
+import com.example.digitalrobot.presentation.startup.QrCodeScannerScreen
 import com.example.digitalrobot.presentation.startup.StartUpScreen
 import com.example.digitalrobot.ui.theme.DigitalRobotTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,7 +32,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             DigitalRobotTheme {
                 Box(modifier = Modifier.background(color = MaterialTheme.colorScheme.background)){
-                    StartUpScreen()
+                    NavGraph()
                 }
             }
         }
