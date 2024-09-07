@@ -23,7 +23,11 @@ class MqttMessageService : Service() {
 
     private val logTag = "MqttMessageService"
 
-    fun connect(host: String) {
+    fun connect(
+        host: String,
+        onConnected: () -> Unit,
+        onMessageArrived: (String) -> Unit
+    ) {
         mqttClient = MqttClient()
         val deviceId = Settings.System.getString(contentResolver, Settings.System.ANDROID_ID) // TODO: Replace this with macAddress
         mqttAndroidClient = mqttClient!!.getMqttClient(
@@ -32,19 +36,19 @@ class MqttMessageService : Service() {
             deviceId
         )
 
-        mqttAndroidClient!!.setCallback(object: MqttCallbackExtended {
+        mqttAndroidClient!!.setCallback(object : MqttCallbackExtended {
             override fun connectComplete(reconnect: Boolean, serverURI: String?) {
                 Log.d(logTag, "Connect Completed $serverURI")
                 try {
                     Handler(Looper.getMainLooper()).post {
                         Toast.makeText(
                             this@MqttMessageService,
-                            "$serverURI Connected!",
+                            "MQTT Broker Connected!",
                             Toast.LENGTH_SHORT
                         ).show()
                     }
-
-                } catch(e: MqttException) {
+                    onConnected()
+                } catch (e: MqttException) {
                     e.printStackTrace()
                 }
             }
@@ -70,7 +74,7 @@ class MqttMessageService : Service() {
 
                 try {
                     val msg = String(message?.payload ?: ByteArray(0))
-                    // TODO: Get message from broker
+                    onMessageArrived(msg)
                 } catch (e: JSONException) {
                     e.printStackTrace()
                 }
@@ -85,9 +89,7 @@ class MqttMessageService : Service() {
                 Log.d(logTag, "Delivery Completed")
             }
 
-        }
-
-        )
+        })
     }
 
     fun disconnect() {

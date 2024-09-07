@@ -2,6 +2,7 @@ package com.example.digitalrobot.presentation.startup
 
 import android.net.MacAddress
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,10 +12,12 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
@@ -27,9 +30,11 @@ import com.example.digitalrobot.ui.theme.DigitalRobotTheme
 @Composable
 fun StartUpScreen(
     macAddress: String,
+    onEvent: (StartUpEvent) -> Unit,
     navigateToScanner: () -> Unit,
     navigateToRobot: (String) -> Unit
 ) {
+
     Column(
         modifier = Modifier
             .padding(MediumPadding)
@@ -37,10 +42,11 @@ fun StartUpScreen(
     ) {
         TextField(
             value = macAddress,
-            onValueChange = {},
+            onValueChange = { onEvent(StartUpEvent.MacAddressChanged(it)) },
             placeholder = {
                 Text(text = "Please enter MAC address or scan QR code ...")
             },
+            singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(SmallPadding)
@@ -64,6 +70,7 @@ fun StartUpScreen(
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ),
             shape = MaterialTheme.shapes.large,
+            enabled = macAddress.isNotBlank(),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(SmallPadding)
@@ -79,6 +86,7 @@ private fun StartUpScreenPreview() {
     DigitalRobotTheme {
         StartUpScreen(
             macAddress = "",
+            onEvent = {},
             navigateToScanner = {},
             navigateToRobot = {}
         )

@@ -15,7 +15,7 @@ class StartUpViewModel @Inject constructor(): ViewModel() {
 
     fun onEvent(event: StartUpEvent) {
         when(event) {
-            is StartUpEvent.ScanQrCodeCompleted -> {
+            is StartUpEvent.MacAddressChanged -> {
                 _macAddress.value = event.result
             }
         }

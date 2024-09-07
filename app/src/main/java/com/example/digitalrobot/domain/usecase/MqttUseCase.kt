@@ -7,8 +7,12 @@ import javax.inject.Inject
 class MqttUseCase @Inject constructor(
     private val repository: IMqttRepository
 ) {
-    fun connect(host: String) {
-        repository.connect(host)
+    fun connect(
+        host: String,
+        onConnected: () -> Unit,
+        onMessageArrived: (String) -> Unit
+    ) {
+        repository.connect(host, onConnected, onMessageArrived)
     }
 
     fun disconnect() {

@@ -13,7 +13,15 @@ class RobotViewModel @Inject constructor(
 
     fun connectMqtt() {
         mqttUseCase.bindService {
-            mqttUseCase.connect(Mqtt.BROKER_URL)
+            mqttUseCase.connect(
+                host = Mqtt.BROKER_URL,
+                onConnected = {
+                    // TODO: Subscribe multiple necessary topics
+                },
+                onMessageArrived = {
+
+                }
+            )
         }
     }
 

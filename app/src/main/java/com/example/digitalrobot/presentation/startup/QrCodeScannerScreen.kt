@@ -12,9 +12,6 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,9 +21,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.example.digitalrobot.util.QrCodeAnalyzer
@@ -63,7 +57,7 @@ fun QrCodeScannerScreen(
     }
     LaunchedEffect(key1 = code) {
         if (code.isNotEmpty()) {
-            onEvent(StartUpEvent.ScanQrCodeCompleted(code))
+            onEvent(StartUpEvent.MacAddressChanged(code))
             navigateUp()
         }
     }
