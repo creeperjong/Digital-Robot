@@ -7,6 +7,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.digitalrobot.presentation.robot.RobotScreen
 import com.example.digitalrobot.presentation.startup.QrCodeScannerScreen
 import com.example.digitalrobot.presentation.startup.StartUpScreen
 import com.example.digitalrobot.presentation.startup.StartUpViewModel
@@ -22,7 +23,8 @@ fun NavGraph() {
             StartUpScreen(
                 macAddress = macAddress,
                 navigateToScanner = { navController.navigate(Route.QrCodeScannerScreen.route) },
-                navigateToRobot = { /* TODO */ }
+                navigateToRobot = { navController.navigate(Route.RobotScreen.route) }
+                // TODO: Send macAddress into RobotScreen
             )
         }
         composable(route = Route.QrCodeScannerScreen.route) {
@@ -32,7 +34,7 @@ fun NavGraph() {
             )
         }
         composable(route = Route.RobotScreen.route) {
-            // TODO: robot screen
+           RobotScreen()
         }
     }
 }
