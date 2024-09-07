@@ -36,11 +36,12 @@ class MqttRepository(
 
     override fun connect(
         host: String,
+        deviceId: String,
         onConnected: () -> Unit,
         onMessageArrived: (String) -> Unit
     ) {
         if (isBound and !isConnected) {
-            mqttService?.connect(host, onConnected, onMessageArrived)
+            mqttService?.connect(host, deviceId, onConnected, onMessageArrived)
             isConnected = true
         }
     }

@@ -57,7 +57,7 @@ fun QrCodeScannerScreen(
     }
     LaunchedEffect(key1 = code) {
         if (code.isNotEmpty()) {
-            onEvent(StartUpEvent.MacAddressChanged(code))
+            onEvent(StartUpEvent.ChangeMacAddress(code))
             navigateUp()
         }
     }

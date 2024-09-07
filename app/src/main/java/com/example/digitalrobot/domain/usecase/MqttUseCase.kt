@@ -9,10 +9,11 @@ class MqttUseCase @Inject constructor(
 ) {
     fun connect(
         host: String,
+        deviceId: String,
         onConnected: () -> Unit,
         onMessageArrived: (String) -> Unit
     ) {
-        repository.connect(host, onConnected, onMessageArrived)
+        repository.connect(host, deviceId, onConnected, onMessageArrived)
     }
 
     fun disconnect() {

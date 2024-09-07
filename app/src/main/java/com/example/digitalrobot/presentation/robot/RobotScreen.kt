@@ -15,23 +15,20 @@ import com.example.digitalrobot.data.remote.mqtt.MqttMessageService
 
 @Composable
 fun RobotScreen(
-    macAddress: String,
-
+    state: RobotState,
+    onEvent: (RobotEvent) -> Unit
 ) {
 
-    val viewModel: RobotViewModel = hiltViewModel()
-
     LaunchedEffect(Unit) {
-        viewModel.connectMqtt()
+        onEvent(RobotEvent.ConnectMqttBroker)
     }
 
     DisposableEffect(Unit) {
         onDispose {
-            viewModel.disconnectMqtt()
+            onEvent(RobotEvent.DisconnectMqttBroker)
         }
     }
 
-    Text(text = macAddress, modifier = Modifier.padding(64.dp))
-
+    Text(text = state.macAddress, modifier = Modifier.padding(64.dp))
 
 }

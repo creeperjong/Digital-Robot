@@ -3,6 +3,7 @@ package com.example.digitalrobot.domain.repository
 interface IMqttRepository {
     fun connect(
         host: String,
+        deviceId: String,
         onConnected: () -> Unit,
         onMessageArrived: (String) -> Unit
     )

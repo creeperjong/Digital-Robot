@@ -2,6 +2,7 @@ package com.example.digitalrobot.presentation.nav
 
 import android.util.Log
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -11,6 +12,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.digitalrobot.presentation.robot.RobotScreen
+import com.example.digitalrobot.presentation.robot.RobotViewModel
 import com.example.digitalrobot.presentation.startup.QrCodeScannerScreen
 import com.example.digitalrobot.presentation.startup.StartUpScreen
 import com.example.digitalrobot.presentation.startup.StartUpViewModel
@@ -47,7 +49,17 @@ fun NavGraph() {
             )
         ) { navBackStackEntry ->
             val macAddress = navBackStackEntry.arguments?.getString(Route.RobotScreen.argName) ?: ""
-            RobotScreen(macAddress)
+            val robotViewModel: RobotViewModel = hiltViewModel()
+            val state by robotViewModel.state.collectAsState()
+
+            LaunchedEffect(macAddress) {
+                robotViewModel.setMacAddress(macAddress)
+            }
+
+            RobotScreen(
+                state = state,
+                onEvent = robotViewModel::onEvent
+            )
         }
     }
 }

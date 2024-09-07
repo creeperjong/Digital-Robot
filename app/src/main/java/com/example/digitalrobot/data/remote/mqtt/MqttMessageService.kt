@@ -25,11 +25,11 @@ class MqttMessageService : Service() {
 
     fun connect(
         host: String,
+        deviceId: String,
         onConnected: () -> Unit,
         onMessageArrived: (String) -> Unit
     ) {
         mqttClient = MqttClient()
-        val deviceId = Settings.System.getString(contentResolver, Settings.System.ANDROID_ID) // TODO: Replace this with macAddress
         mqttAndroidClient = mqttClient!!.getMqttClient(
             applicationContext,
             host,
