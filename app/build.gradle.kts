@@ -82,10 +82,8 @@ dependencies {
     kapt(libs.hilt.compiler)
 
     // Paho MQTT
-//    implementation(libs.org.eclipse.paho.android.service)
     implementation(libs.org.eclipse.paho.client.mqttv3)
     // Solve MqttAndroidClient obsolete dependency
-//    implementation(libs.support.v4)
     implementation(libs.androidx.legacy.support.v4)
     implementation(libs.paho.mqtt.android)
 

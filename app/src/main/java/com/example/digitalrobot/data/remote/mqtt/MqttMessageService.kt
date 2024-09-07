@@ -43,6 +43,7 @@ class MqttMessageService : Service() {
                             Toast.LENGTH_SHORT
                         ).show()
                     }
+
                 } catch(e: MqttException) {
                     e.printStackTrace()
                 }
