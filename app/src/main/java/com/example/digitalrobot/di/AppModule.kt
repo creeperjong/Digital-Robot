@@ -4,6 +4,7 @@ import android.app.Application
 import com.example.digitalrobot.data.repository.MqttRepository
 import com.example.digitalrobot.domain.repository.IMqttRepository
 import com.example.digitalrobot.domain.usecase.MqttUseCase
+import com.example.digitalrobot.domain.usecase.TextToSpeechUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,5 +26,9 @@ object AppModule {
     fun provideMqttUseCase(
         repository: IMqttRepository
     ): MqttUseCase = MqttUseCase(repository)
+
+    @Provides
+    @Singleton
+    fun provideTextToSpeechUseCase(): TextToSpeechUseCase = TextToSpeechUseCase()
 
 }

@@ -11,7 +11,7 @@ class MqttUseCase @Inject constructor(
         host: String,
         deviceId: String,
         onConnected: () -> Unit,
-        onMessageArrived: (String) -> Unit
+        onMessageArrived: (String, String) -> Unit
     ) {
         repository.connect(host, deviceId, onConnected, onMessageArrived)
     }

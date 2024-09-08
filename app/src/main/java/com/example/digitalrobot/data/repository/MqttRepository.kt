@@ -38,7 +38,7 @@ class MqttRepository(
         host: String,
         deviceId: String,
         onConnected: () -> Unit,
-        onMessageArrived: (String) -> Unit
+        onMessageArrived: (String, String) -> Unit
     ) {
         if (isBound and !isConnected) {
             mqttService?.connect(host, deviceId, onConnected, onMessageArrived)

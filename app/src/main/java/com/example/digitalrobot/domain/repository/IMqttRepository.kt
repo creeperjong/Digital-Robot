@@ -5,7 +5,7 @@ interface IMqttRepository {
         host: String,
         deviceId: String,
         onConnected: () -> Unit,
-        onMessageArrived: (String) -> Unit
+        onMessageArrived: (String, String) -> Unit
     )
     fun disconnect()
     fun subscribe(topic: String, qos: Int)

@@ -27,7 +27,7 @@ class MqttMessageService : Service() {
         host: String,
         deviceId: String,
         onConnected: () -> Unit,
-        onMessageArrived: (String) -> Unit
+        onMessageArrived: (String, String) -> Unit
     ) {
         mqttClient = MqttClient()
         mqttAndroidClient = mqttClient!!.getMqttClient(
@@ -74,7 +74,7 @@ class MqttMessageService : Service() {
 
                 try {
                     val msg = String(message?.payload ?: ByteArray(0))
-                    onMessageArrived(msg)
+                    onMessageArrived(topic ?: "", msg)
                 } catch (e: JSONException) {
                     e.printStackTrace()
                 }
