@@ -46,13 +46,11 @@ class MainActivity : ComponentActivity() {
 
 private fun hideSystemUi(window: Window) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        // 使用 WindowInsetsController 隱藏系統欄
         window.insetsController?.let { controller ->
             controller.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
             controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
     } else {
-        // 針對 Android 11 以下的版本，依然使用 systemUiVisibility
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = (
                 View.SYSTEM_UI_FLAG_FULLSCREEN

@@ -28,7 +28,7 @@ fun RobotScreen(
     }
 
     VideoPlayer(
-        videoResId = R.raw.smile,
+        videoResId = state.faceResId,
         modifier = Modifier.fillMaxSize()
     )
 

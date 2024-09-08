@@ -3,9 +3,15 @@ package com.example.digitalrobot.presentation.robot.component
 import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.annotation.RawRes
+import androidx.compose.animation.Crossfade
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -23,33 +29,81 @@ fun VideoPlayer(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val videoUri = Uri.parse("android.resource://${context.packageName}/$videoResId")
+    var currentPlayerIndex by remember {
+        mutableIntStateOf(0)
+    }
 
-    val exoPlayer = remember {
+    /*
+     * Use 2 player to avoid black frame
+     * when switching videos
+     */
+
+    val exoPlayer1 = remember {
         ExoPlayer.Builder(context).build().apply {
             repeatMode = Player.REPEAT_MODE_ALL
-
-            val mediaItem = MediaItem.fromUri(videoUri)
-            setMediaItem(mediaItem)
-            prepare()
+            playWhenReady = true
+        }
+    }
+    val exoPlayer2 = remember {
+        ExoPlayer.Builder(context).build().apply {
+            repeatMode = Player.REPEAT_MODE_ALL
             playWhenReady = true
         }
     }
 
-    AndroidView(
-        factory = { ctx ->
-            PlayerView(ctx).apply {
-                player = exoPlayer
-                useController = false
-                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
-            }
-        },
-        modifier = modifier
-    )
+    LaunchedEffect(videoResId) {
+        val videoUri = Uri.parse("android.resource://${context.packageName}/$videoResId")
+        val mediaItem = MediaItem.fromUri(videoUri)
 
-    DisposableEffect(exoPlayer) {
+        if (currentPlayerIndex == 0) {
+            exoPlayer1.stop()
+            exoPlayer2.apply {
+                setMediaItem(mediaItem)
+                prepare()
+                play()
+            }
+        } else {
+            exoPlayer2.stop()
+            exoPlayer1.apply {
+                setMediaItem(mediaItem)
+                prepare()
+                play()
+            }
+        }
+        currentPlayerIndex = (currentPlayerIndex + 1) % 2
+    }
+    Crossfade(targetState = currentPlayerIndex, label = "") { index ->
+        if (index == 0) {
+            // 顯示播放器1
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        player = exoPlayer1
+                        useController = false
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
+                    }
+                },
+                modifier = modifier
+            )
+        } else {
+            // 顯示播放器2
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        player = exoPlayer2
+                        useController = false
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
+                    }
+                },
+                modifier = modifier
+            )
+        }
+    }
+
+    DisposableEffect(exoPlayer1, exoPlayer2) {
         onDispose {
-            exoPlayer.release()
+            exoPlayer1.release()
+            exoPlayer2.release()
         }
     }
 }

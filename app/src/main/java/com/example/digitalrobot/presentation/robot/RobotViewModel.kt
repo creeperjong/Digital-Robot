@@ -3,6 +3,7 @@ package com.example.digitalrobot.presentation.robot
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import com.example.digitalrobot.R
 import com.example.digitalrobot.domain.usecase.MqttUseCase
 import com.example.digitalrobot.domain.usecase.TextToSpeechUseCase
 import com.example.digitalrobot.util.Constants.Mqtt
@@ -94,7 +95,6 @@ class RobotViewModel @Inject constructor(
 
     private fun onMqttMessageArrived(topic: String, message: String) {
         // TODO: Parser
-        Log.d("ViewModel", message)
     }
 
     /*
@@ -105,18 +105,28 @@ class RobotViewModel @Inject constructor(
         textToSpeechUseCase.init(
             context = context,
             language = _state.value.currentLanguage,
-            onComplete = { _state.value = _state.value.copy(isSpeaking = false) }
+            onTTSComplete = { _state.value = _state.value.copy(
+                isSpeaking = false,
+                faceResId = R.raw.smile
+            ) }
         )
     }
 
     private fun speak(text: String) {
         textToSpeechUseCase.speak(text)
-        _state.value = _state.value.copy(isSpeaking = true, lastSpokenText = text)
+        _state.value = _state.value.copy(
+            isSpeaking = true,
+            lastSpokenText = text,
+            faceResId = R.raw.normal
+        )
     }
 
     private fun stopSpeaking() {
         textToSpeechUseCase.stop()
-        _state.value = _state.value.copy(isSpeaking = false)
+        _state.value = _state.value.copy(
+            isSpeaking = false,
+            faceResId = R.raw.smile
+        )
     }
 
     private fun changeLanguage(locale: Locale) {
