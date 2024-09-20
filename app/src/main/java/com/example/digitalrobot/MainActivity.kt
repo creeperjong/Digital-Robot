@@ -3,6 +3,7 @@ package com.example.digitalrobot
 import android.content.pm.ActivityInfo
 import android.os.Build
 import android.os.Bundle
+import android.speech.SpeechRecognizer
 import android.view.View
 import android.view.Window
 import android.view.WindowInsets
@@ -26,6 +27,7 @@ import com.example.digitalrobot.presentation.startup.QrCodeScannerScreen
 import com.example.digitalrobot.presentation.startup.StartUpScreen
 import com.example.digitalrobot.ui.theme.DigitalRobotTheme
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -33,6 +35,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         enableEdgeToEdge()
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         hideSystemUi(window)
         setContent {
             DigitalRobotTheme {

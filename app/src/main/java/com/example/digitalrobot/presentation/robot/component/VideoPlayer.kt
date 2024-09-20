@@ -74,7 +74,6 @@ fun VideoPlayer(
     }
     Crossfade(targetState = currentPlayerIndex, label = "") { index ->
         if (index == 0) {
-            // 顯示播放器1
             AndroidView(
                 factory = { ctx ->
                     PlayerView(ctx).apply {
@@ -86,7 +85,6 @@ fun VideoPlayer(
                 modifier = modifier
             )
         } else {
-            // 顯示播放器2
             AndroidView(
                 factory = { ctx ->
                     PlayerView(ctx).apply {

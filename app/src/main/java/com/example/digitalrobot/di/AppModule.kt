@@ -1,9 +1,13 @@
 package com.example.digitalrobot.di
 
 import android.app.Application
+import android.content.Context
+import android.speech.SpeechRecognizer
+import androidx.media3.common.C.Priority
 import com.example.digitalrobot.data.repository.MqttRepository
 import com.example.digitalrobot.domain.repository.IMqttRepository
 import com.example.digitalrobot.domain.usecase.MqttUseCase
+import com.example.digitalrobot.domain.usecase.SpeechToTextUseCase
 import com.example.digitalrobot.domain.usecase.TextToSpeechUseCase
 import dagger.Module
 import dagger.Provides
@@ -30,5 +34,17 @@ object AppModule {
     @Provides
     @Singleton
     fun provideTextToSpeechUseCase(): TextToSpeechUseCase = TextToSpeechUseCase()
+
+    @Provides
+    @Singleton
+    fun provideSpeechRecognizer(
+        application: Application
+    ): SpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(application)
+
+    @Provides
+    @Singleton
+    fun provideSpeechToTextUseCase(
+        speechRecognizer: SpeechRecognizer
+    ): SpeechToTextUseCase = SpeechToTextUseCase(speechRecognizer)
 
 }

@@ -16,5 +16,4 @@ sealed class RobotEvent {
     data object StopTTS: RobotEvent()
 
     data class ChangeTTSLanguage(val locale: Locale): RobotEvent()
-
 }
