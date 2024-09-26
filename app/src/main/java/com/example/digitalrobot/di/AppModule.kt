@@ -5,7 +5,9 @@ import android.content.Context
 import android.speech.SpeechRecognizer
 import androidx.media3.common.C.Priority
 import com.example.digitalrobot.data.remote.LanguageModelApi
+import com.example.digitalrobot.data.repository.LanguageModelRepository
 import com.example.digitalrobot.data.repository.MqttRepository
+import com.example.digitalrobot.domain.repository.ILanguageModelRepository
 import com.example.digitalrobot.domain.repository.IMqttRepository
 import com.example.digitalrobot.domain.usecase.MqttUseCase
 import com.example.digitalrobot.domain.usecase.SpeechToTextUseCase
@@ -60,5 +62,11 @@ object AppModule {
             .build()
             .create(LanguageModelApi::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideLanguageModelRepository(
+        languageModelApi: LanguageModelApi
+    ): ILanguageModelRepository = LanguageModelRepository(languageModelApi)
 
 }
