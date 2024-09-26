@@ -12,7 +12,7 @@ import kotlinx.coroutines.withContext
 import java.util.Locale
 import javax.inject.Inject
 
-class SpeechToTextUseCase @Inject constructor(
+class SpeechToTextUseCase (
     private val speechRecognizer: SpeechRecognizer
 ) {
 

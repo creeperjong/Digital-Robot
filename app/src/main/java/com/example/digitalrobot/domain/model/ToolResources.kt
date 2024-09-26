@@ -1,4 +1,4 @@
-package com.example.digitalrobot.data.remote.dto
+package com.example.digitalrobot.domain.model
 
 data class ToolResources(
     val code_interpreter: CodeInterpreter,

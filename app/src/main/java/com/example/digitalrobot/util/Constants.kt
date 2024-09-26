@@ -32,8 +32,13 @@ object Constants {
 
             const val TABLET = "{{deviceId}}-tablet"
 
-
         }
+
+    }
+
+    object LanguageModel {
+
+        const val BASE_URL = "https://api.openai.com/v1/"
 
     }
 

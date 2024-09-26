@@ -1,32 +1,29 @@
-package com.example.digitalrobot.data.remote.dto.response
+package com.example.digitalrobot.domain.model
 
-import com.example.digitalrobot.data.remote.dto.IncompleteDetails
-import com.example.digitalrobot.data.remote.dto.TruncationStrategy
-
-data class RunAssistantResponse(
+data class Run(
     val id: String,
     val `object`: String,
     val created_at: Int,
     val thread_id: Int,
     val assistant_id: String,
     val status: String,
-    val required_action: RequiredAction?,
-    val last_error: LastError?,
-    val expires_at: Int?,
-    val started_at: Int?,
-    val cancelled_at: Int?,
-    val failed_at: Int?,
-    val completed_at: Int?,
-    val incomplete_details: IncompleteDetails?,
+    val required_action: RequiredAction? = null,
+    val last_error: LastError? = null,
+    val expires_at: Int? = null,
+    val started_at: Int? = null,
+    val cancelled_at: Int? = null,
+    val failed_at: Int? = null,
+    val completed_at: Int? = null,
+    val incomplete_details: IncompleteDetails? = null,
     val model: String,
     val instructions: String,
     val tools: List<Any>,
     val metadata: Any,
-    val usage: Usage?,
-    val temperature: Double?,
-    val top_p: Double?,
-    val max_prompt_tokens: Int?,
-    val max_completion_tokens: Int?,
+    val usage: Usage? = null,
+    val temperature: Double? = null,
+    val top_p: Double? = null,
+    val max_prompt_tokens: Int? = null,
+    val max_completion_tokens: Int? = null,
     val truncation_strategy: TruncationStrategy,
     val tool_choice: Any,
     val parallel_tool_calls: Boolean,

@@ -4,7 +4,7 @@ import com.example.digitalrobot.data.repository.MqttRepository
 import com.example.digitalrobot.domain.repository.IMqttRepository
 import javax.inject.Inject
 
-class MqttUseCase @Inject constructor(
+class MqttUseCase (
     private val repository: IMqttRepository
 ) {
     fun connect(

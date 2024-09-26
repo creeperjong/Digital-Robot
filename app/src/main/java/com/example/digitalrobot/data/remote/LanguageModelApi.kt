@@ -1,12 +1,12 @@
 package com.example.digitalrobot.data.remote
 
 import com.example.digitalrobot.data.remote.dto.request.CreateThreadRequest
-import com.example.digitalrobot.data.remote.dto.request.RunAssistantRequest
-import com.example.digitalrobot.data.remote.dto.request.SendMessageRequest
-import com.example.digitalrobot.data.remote.dto.response.CreateThreadResponse
-import com.example.digitalrobot.data.remote.dto.response.RetrieveAssistantResponse
-import com.example.digitalrobot.data.remote.dto.response.RunAssistantResponse
-import com.example.digitalrobot.data.remote.dto.response.SendMessageResponse
+import com.example.digitalrobot.data.remote.dto.request.CreateRunRequest
+import com.example.digitalrobot.data.remote.dto.request.CreateMessageRequest
+import com.example.digitalrobot.domain.model.Thread
+import com.example.digitalrobot.domain.model.Assistant
+import com.example.digitalrobot.domain.model.Run
+import com.example.digitalrobot.domain.model.Message
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
@@ -24,34 +24,39 @@ interface LanguageModelApi {
     @GET("assistants/{assistantId}")
     suspend fun retrieveAssistant(
         @Path("assistantId") assistantId: String,
-        @Header("Authorization") autoToken: String
-    ): RetrieveAssistantResponse
+        @Header("Authorization") authToken: String
+    ): Assistant
 
     @POST("threads")
     suspend fun createThread(
         @Body request: CreateThreadRequest,
-        @Header("Authorization") autoToken: String
-    ): CreateThreadResponse
+        @Header("Authorization") authToken: String
+    ): Thread
 
     @POST("threads/{threadId}/messages")
-    suspend fun sendMessage(
-        @Body request: SendMessageRequest,
+    suspend fun createMessage(
+        @Body request: CreateMessageRequest,
         @Path("threadId") threadId: String,
-        @Header("Authorization") autoToken: String
-    ): SendMessageResponse
+        @Header("Authorization") authToken: String
+    ): Message
+
+    @GET("threads/{threadId}/messages")
+    suspend fun listMessages(
+        @Path("threadId") threadId: String,
+        @Header("Authorization") authToken: String
+    ): List<Message>
 
     @POST("threads/{threadId}/runs")
-    suspend fun runAssistant(
-        @Body request: RunAssistantRequest,
+    suspend fun createRun(
+        @Body request: CreateRunRequest,
         @Path("threadId") threadId: String,
-        @Header("Authorization") autoToken: String
-    ): RunAssistantResponse
+        @Header("Authorization") authToken: String
+    ): Run
 
     @GET("threads/{threadId}/runs/{runId}")
-    suspend fun getRunStatus(
+    suspend fun retrieveRun(
         @Path("threadId") threadId: String,
         @Path("runId") runId: String,
-        @Header("Authorization") autoToken: String
-    ): RunAssistantResponse
-
+        @Header("Authorization") authToken: String
+    ): Run
 }

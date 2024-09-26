@@ -156,7 +156,7 @@ class RobotViewModel @Inject constructor(
 
     private suspend fun startSTT() {
         speechToTextUseCase.startListening { result ->
-            Log.d("viewmodel", result)
+            // TODO: STT finished
         }
     }
 
