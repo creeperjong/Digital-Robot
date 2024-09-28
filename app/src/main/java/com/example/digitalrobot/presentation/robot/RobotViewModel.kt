@@ -5,11 +5,15 @@ import androidx.annotation.RawRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.digitalrobot.R
+import com.example.digitalrobot.domain.model.llm.Message
 import com.example.digitalrobot.domain.usecase.LanguageModelUseCase
 import com.example.digitalrobot.domain.usecase.MqttUseCase
 import com.example.digitalrobot.domain.usecase.SpeechToTextUseCase
 import com.example.digitalrobot.domain.usecase.TextToSpeechUseCase
 import com.example.digitalrobot.util.Constants.Mqtt
+import com.example.digitalrobot.util.getNestedValueFromLinkedTreeMap
+import com.example.digitalrobot.util.getPropertyFromJsonString
+import com.google.gson.internal.LinkedTreeMap
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +39,7 @@ class RobotViewModel @Inject constructor(
     }
 
     fun onEvent(event: RobotEvent) {
-        when(event) {
+        when (event) {
             is RobotEvent.ConnectMqttBroker -> {
                 connectMqtt()
             }
@@ -57,6 +61,41 @@ class RobotViewModel @Inject constructor(
             is RobotEvent.ChangeSTTLanguage -> {
                 changeSTTLanguage(event.locale)
             }
+            is RobotEvent.InitAssistant -> {
+                startAssistant()
+            }
+        }
+    }
+
+    /*
+     *  MQTT related functions
+     */
+
+    private fun onTap(bodyPart: RobotBodyPart?) {
+        // TODO: Manage touch mode
+        when (bodyPart) {
+            RobotBodyPart.HEAD -> {
+
+            }
+            RobotBodyPart.CHEST -> {
+
+            }
+            RobotBodyPart.RIGHT_HAND -> {
+
+            }
+            RobotBodyPart.LEFT_HEAD -> {
+
+            }
+            RobotBodyPart.LEFT_FACE -> {
+
+            }
+            RobotBodyPart.RIGHT_FACE -> {
+                if (_state.value.currentStage is RobotStage.Start) {
+                    _state.value = _state.value.copy(currentStage = RobotStage.InProgress)
+                    startAssistant()
+                }
+            }
+            null -> {}
         }
     }
 
@@ -95,7 +134,7 @@ class RobotViewModel @Inject constructor(
             subscribe(getFullTopic(Mqtt.Topic.SEND_FILE), 0)
             subscribe(getFullTopic(Mqtt.Topic.NFC_TAG), 0)
             subscribe(getFullTopic(Mqtt.Topic.TABLET), 0)
-            subscribe(_state.value.deviceId, 0)
+            subscribe(getFullTopic(Mqtt.Topic.ROBOT), 0)
         }
     }
 
@@ -105,6 +144,17 @@ class RobotViewModel @Inject constructor(
 
     private fun onMqttMessageArrived(topic: String, message: String) {
         // TODO: Mqtt Message Received
+        when (topic) {
+            getFullTopic(Mqtt.Topic.ROBOT) -> {
+                val bodyPart = getPropertyFromJsonString(
+                    json = message,
+                    propertyName = "BODYPART",
+                    expectedType = String::class
+                )
+                onTap(RobotBodyPart.fromCode(bodyPart?.toInt()))
+            }
+            else -> {}
+        }
     }
 
     /*
@@ -115,12 +165,7 @@ class RobotViewModel @Inject constructor(
         textToSpeechUseCase.init(
             context = context,
             language = _state.value.currentTTSLanguage,
-            onTTSComplete = { _state.value = _state.value.copy(
-                isSpeaking = false,
-                faceResId = R.raw.smile
-            )
-            // TODO: TTS Completed
-            }
+            onTTSComplete = { onTTSComplete() }
         )
     }
 
@@ -146,6 +191,22 @@ class RobotViewModel @Inject constructor(
         _state.value = _state.value.copy(currentTTSLanguage = locale)
     }
 
+    private fun onTTSComplete() {
+        _state.value = _state.value.copy(
+            isSpeaking = false,
+            faceResId = R.raw.smile
+        )
+        when(_state.value.currentStage) {
+            // TODO: Manual STT and others
+            RobotStage.AutoSTT -> {
+                viewModelScope.launch {
+                    startSTT()
+                }
+            }
+            else -> {}
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         textToSpeechUseCase.cleanUp()
@@ -162,7 +223,7 @@ class RobotViewModel @Inject constructor(
         )
         speechToTextUseCase.startListening(language = language) { result ->
             _state.value = _state.value.copy(isListening = false)
-            // TODO: STT Completed
+            sendPromptAndHandleResponse(result)
         }
     }
 
@@ -193,12 +254,11 @@ class RobotViewModel @Inject constructor(
                 threadId = threadId
             )
 
-            fetchLanguageModelResponse(prompt = "Start")
-
+            sendPromptAndHandleResponse(prompt = "Start")
         }
     }
 
-    private fun fetchLanguageModelResponse(prompt: String) {
+    private fun sendPromptAndHandleResponse(prompt: String) {
         val threadId = _state.value.threadId
         val assistantId = _state.value.assistantId
         viewModelScope.launch {
@@ -227,8 +287,49 @@ class RobotViewModel @Inject constructor(
             } while (status != "completed")
 
             val response = languageModelUseCase.getAssistantResponse(threadId = threadId)
-
-            // TODO: Handle LLM response
+            handleResponse(response)
         }
+    }
+
+    private fun handleResponse(response: Message?) {
+        val rawText = getNestedValueFromLinkedTreeMap(
+            map = response?.content?.firstOrNull() as LinkedTreeMap<*, *>,
+            nestedKey = "text.value",
+            expectedType = String::class
+        ) ?: ""
+
+        // Handle tags in response
+        val tags = extractTagsFromText(rawText)
+        val text = removeTagsFromText(rawText)
+        for (tag in tags) {
+            when (tag) {
+                "FINISH" -> {
+                    _state.value = _state.value.copy(currentStage = RobotStage.Start)
+                    break
+                }
+                "MANUAL STT" -> {
+                    _state.value = _state.value.copy(currentStage = RobotStage.ManualSTT)
+                }
+                "AUTO STT" -> {
+                    _state.value = _state.value.copy(currentStage = RobotStage.AutoSTT)
+                }
+                else -> {}
+            }
+        }
+        // TODO: Handle expression & motion tag
+        // TODO: Remove unexpected annotations & link in text of TTS
+        // TODO: Send image to tablet (MQTT)
+        startTTS(text = text, videoResId = R.raw.normal)
+
+    }
+
+    private fun extractTagsFromText(input: String): List<String> {
+        val regex = "\\[(.+?)]".toRegex()
+        return regex.findAll(input).map { it.groupValues[1] }.toList()
+    }
+
+    private fun removeTagsFromText(input: String): String {
+        val regex = "\\[.*?]".toRegex()
+        return input.replace(regex, "")
     }
 }

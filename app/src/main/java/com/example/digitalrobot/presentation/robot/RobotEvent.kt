@@ -19,4 +19,6 @@ sealed class RobotEvent {
     data class ChangeTTSLanguage(val locale: Locale): RobotEvent()
 
     data class ChangeSTTLanguage(val locale: Locale): RobotEvent()
+
+    data object InitAssistant: RobotEvent()
 }

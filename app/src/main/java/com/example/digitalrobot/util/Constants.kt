@@ -32,6 +32,8 @@ object Constants {
 
             const val TABLET = "{{deviceId}}-tablet"
 
+            const val ROBOT = "{{deviceId}}"
+
         }
 
     }

@@ -26,6 +26,7 @@ fun RobotScreen(
         launcher.launch(Manifest.permission.RECORD_AUDIO)
         onEvent(RobotEvent.ConnectMqttBroker)
         onEvent(RobotEvent.InitTTS(context))
+//        onEvent(RobotEvent.InitAssistant)
     }
 
     DisposableEffect(Unit) {

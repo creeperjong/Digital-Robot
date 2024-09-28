@@ -1,5 +1,7 @@
 package com.example.digitalrobot.util
 
+import android.util.Log
+import com.google.gson.Gson
 import com.google.gson.internal.LinkedTreeMap
 import kotlin.reflect.KClass
 import kotlin.reflect.full.memberProperties
@@ -51,7 +53,6 @@ fun <T : Any> getValueFromLinkedTreeMap(
     expectedType: KClass<T>
 ): T? {
     val value = map[key] ?: return null
-
     return if (expectedType.isInstance(value)) {
         @Suppress("UNCHECKED_CAST")
         value as T
@@ -77,5 +78,48 @@ fun <T : Any> getNestedValueFromLinkedTreeMap(
         currentMap as T
     } else {
         null
+    }
+}
+
+fun <T : Any> getPropertyFromJsonString(
+    json: String,
+    propertyName: String,
+    expectedType: KClass<T>
+): T? {
+    val map = try {
+        val gson = Gson()
+        gson.fromJson(json, LinkedTreeMap::class.java) as LinkedTreeMap<*, *>
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+
+    return map?.let {
+        getValueFromLinkedTreeMap(
+            map = it,
+            key = propertyName,
+            expectedType = expectedType
+        )
+    }
+}
+
+fun <T : Any> getNestedPropertyFromJsonString(
+    json: String,
+    propertyPath: String,
+    expectedType: KClass<T>
+): T? {
+    val map = try {
+        val gson = Gson()
+        gson.fromJson(json, LinkedTreeMap::class.java) as LinkedTreeMap<*, *>
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+    return map?.let {
+        getNestedValueFromLinkedTreeMap(
+            map = it,
+            nestedKey = propertyPath,
+            expectedType = expectedType
+        )
     }
 }
