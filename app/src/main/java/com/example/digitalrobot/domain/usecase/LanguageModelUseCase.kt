@@ -1,11 +1,10 @@
 package com.example.digitalrobot.domain.usecase
 
-import com.example.digitalrobot.domain.model.Assistant
-import com.example.digitalrobot.domain.model.Attachment
-import com.example.digitalrobot.domain.model.Message
-import com.example.digitalrobot.domain.model.ToolResources
+import com.example.digitalrobot.domain.model.llm.Assistant
+import com.example.digitalrobot.domain.model.llm.common.Attachment
+import com.example.digitalrobot.domain.model.llm.Message
+import com.example.digitalrobot.domain.model.llm.common.ToolResources
 import com.example.digitalrobot.domain.repository.ILanguageModelRepository
-import org.w3c.dom.ProcessingInstruction
 
 class LanguageModelUseCase(
     private val languageModelRepository: ILanguageModelRepository
@@ -14,7 +13,7 @@ class LanguageModelUseCase(
         return languageModelRepository.retrieveAssistant(assistantId)
     }
 
-    suspend fun generateThreadId(toolResources: ToolResources): String {
+    suspend fun generateThreadId(toolResources: ToolResources?): String {
         return languageModelRepository.createThread(toolResources).id
     }
 
@@ -59,6 +58,6 @@ class LanguageModelUseCase(
     ): Message? {
         return languageModelRepository.listMessages(
             threadId = threadId
-        ).lastOrNull()
+        ).data.firstOrNull()
     }
 }

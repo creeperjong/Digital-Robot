@@ -1,4 +1,4 @@
-package com.example.digitalrobot.domain.model
+package com.example.digitalrobot.domain.model.llm.common
 
 data class ToolResources(
     val code_interpreter: CodeInterpreter,

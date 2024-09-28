@@ -1,10 +1,13 @@
-package com.example.digitalrobot.domain.model
+package com.example.digitalrobot.domain.model.llm
+
+import com.example.digitalrobot.domain.model.llm.common.IncompleteDetails
+import com.example.digitalrobot.domain.model.llm.common.TruncationStrategy
 
 data class Run(
     val id: String,
     val `object`: String,
     val created_at: Int,
-    val thread_id: Int,
+    val thread_id: String,
     val assistant_id: String,
     val status: String,
     val required_action: RequiredAction? = null,

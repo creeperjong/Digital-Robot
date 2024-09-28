@@ -1,4 +1,6 @@
-package com.example.digitalrobot.domain.model
+package com.example.digitalrobot.domain.model.llm
+
+import com.example.digitalrobot.domain.model.llm.common.ToolResources
 
 data class Assistant(
     val id: String,
@@ -9,7 +11,7 @@ data class Assistant(
     val model: String,
     val instructions: String? = null,
     val tools: List<Any>,
-    val tool_resources: ToolResources,
+    val tool_resources: ToolResources?,
     val metadata: Any,
     val temperature: Double? = null,
     val top_p: Double? = null,

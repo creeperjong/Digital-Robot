@@ -1,16 +1,17 @@
 package com.example.digitalrobot.presentation.robot
 
 import android.content.Context
-import android.content.Intent
-import android.util.Log
+import androidx.annotation.RawRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.digitalrobot.R
+import com.example.digitalrobot.domain.usecase.LanguageModelUseCase
 import com.example.digitalrobot.domain.usecase.MqttUseCase
 import com.example.digitalrobot.domain.usecase.SpeechToTextUseCase
 import com.example.digitalrobot.domain.usecase.TextToSpeechUseCase
 import com.example.digitalrobot.util.Constants.Mqtt
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,14 +23,9 @@ import javax.inject.Inject
 class RobotViewModel @Inject constructor(
     private val mqttUseCase: MqttUseCase,
     private val textToSpeechUseCase: TextToSpeechUseCase,
-    private val speechToTextUseCase: SpeechToTextUseCase
+    private val speechToTextUseCase: SpeechToTextUseCase,
+    private val languageModelUseCase: LanguageModelUseCase
 ): ViewModel() {
-
-    init {
-        viewModelScope.launch {
-            startSTT()
-        }
-    }
 
     private val _state = MutableStateFlow(RobotState())
     val state: StateFlow<RobotState> = _state.asStateFlow()
@@ -50,13 +46,16 @@ class RobotViewModel @Inject constructor(
                 initTTS(event.context)
             }
             is RobotEvent.StartTTS -> {
-                startTTS(event.text)
+                startTTS(event.text, event.videoResId)
             }
             is RobotEvent.StopTTS -> {
                 stopTTS()
             }
             is RobotEvent.ChangeTTSLanguage -> {
                 changeTTSLanguage(event.locale)
+            }
+            is RobotEvent.ChangeSTTLanguage -> {
+                changeSTTLanguage(event.locale)
             }
         }
     }
@@ -105,7 +104,7 @@ class RobotViewModel @Inject constructor(
     }
 
     private fun onMqttMessageArrived(topic: String, message: String) {
-        // TODO: Parser
+        // TODO: Mqtt Message Received
     }
 
     /*
@@ -119,17 +118,19 @@ class RobotViewModel @Inject constructor(
             onTTSComplete = { _state.value = _state.value.copy(
                 isSpeaking = false,
                 faceResId = R.raw.smile
-            ) }
+            )
+            // TODO: TTS Completed
+            }
         )
     }
 
-    private fun startTTS(text: String) {
-        textToSpeechUseCase.speak(text)
+    private fun startTTS(text: String, @RawRes videoResId: Int) {
         _state.value = _state.value.copy(
             isSpeaking = true,
             lastSpokenText = text,
-            faceResId = R.raw.normal
+            faceResId = videoResId
         )
+        textToSpeechUseCase.speak(text)
     }
 
     private fun stopTTS() {
@@ -155,12 +156,79 @@ class RobotViewModel @Inject constructor(
      */
 
     private suspend fun startSTT() {
-        speechToTextUseCase.startListening { result ->
-            // TODO: STT finished
+        val language = _state.value.currentSTTLanguage
+        _state.value = _state.value.copy(
+            isListening = true
+        )
+        speechToTextUseCase.startListening(language = language) { result ->
+            _state.value = _state.value.copy(isListening = false)
+            // TODO: STT Completed
         }
     }
 
     private fun stopSTT() {
         speechToTextUseCase.stopListening()
+        _state.value = _state.value.copy(
+            isListening = false
+        )
+    }
+
+    private fun changeSTTLanguage(locale: Locale) {
+        _state.value = _state.value.copy(currentSTTLanguage = locale)
+    }
+
+    /*
+     *  LLM connection related functions
+     */
+
+    private fun startAssistant() {
+        viewModelScope.launch {
+            val assistantId = _state.value.assistantId
+            val assistant = languageModelUseCase.retrieveAssistant(assistantId)
+            val toolResources = assistant.tool_resources
+            val threadId = languageModelUseCase.generateThreadId(toolResources)
+
+            _state.value = _state.value.copy(
+                assistantName = assistant.name ?: "",
+                threadId = threadId
+            )
+
+            fetchLanguageModelResponse(prompt = "Start")
+
+        }
+    }
+
+    private fun fetchLanguageModelResponse(prompt: String) {
+        val threadId = _state.value.threadId
+        val assistantId = _state.value.assistantId
+        viewModelScope.launch {
+            languageModelUseCase.sendMessage(
+                threadId = threadId,
+                role = "user",
+                content = prompt,
+                attachments = null
+            )
+
+            val runId = languageModelUseCase.generateAssistantRunId(
+                threadId = threadId,
+                assistantId = assistantId,
+                instructions = null
+            )
+
+            var status = ""
+            do {
+                status = languageModelUseCase.getRunStatus(
+                    threadId = threadId,
+                    runId = runId
+                )
+                if (status != "completed") {
+                    delay(1000)
+                }
+            } while (status != "completed")
+
+            val response = languageModelUseCase.getAssistantResponse(threadId = threadId)
+
+            // TODO: Handle LLM response
+        }
     }
 }

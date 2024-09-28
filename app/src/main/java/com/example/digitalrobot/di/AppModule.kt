@@ -5,10 +5,12 @@ import android.content.Context
 import android.speech.SpeechRecognizer
 import androidx.media3.common.C.Priority
 import com.example.digitalrobot.data.remote.LanguageModelApi
+import com.example.digitalrobot.data.remote.LanguageModelHeaderInterceptor
 import com.example.digitalrobot.data.repository.LanguageModelRepository
 import com.example.digitalrobot.data.repository.MqttRepository
 import com.example.digitalrobot.domain.repository.ILanguageModelRepository
 import com.example.digitalrobot.domain.repository.IMqttRepository
+import com.example.digitalrobot.domain.usecase.LanguageModelUseCase
 import com.example.digitalrobot.domain.usecase.MqttUseCase
 import com.example.digitalrobot.domain.usecase.SpeechToTextUseCase
 import com.example.digitalrobot.domain.usecase.TextToSpeechUseCase
@@ -17,6 +19,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Singleton
@@ -55,9 +58,18 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideLanguageModelApi(): LanguageModelApi {
+    fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
+        .addInterceptor(LanguageModelHeaderInterceptor())
+        .build()
+
+    @Provides
+    @Singleton
+    fun provideLanguageModelApi(
+        okHttpClient: OkHttpClient
+    ): LanguageModelApi {
         return Retrofit.Builder()
             .baseUrl(BASE_URL)
+            .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(LanguageModelApi::class.java)
@@ -69,4 +81,9 @@ object AppModule {
         languageModelApi: LanguageModelApi
     ): ILanguageModelRepository = LanguageModelRepository(languageModelApi)
 
+    @Provides
+    @Singleton
+    fun provideLanguageModelUseCase(
+        languageModelRepository: ILanguageModelRepository
+    ): LanguageModelUseCase = LanguageModelUseCase(languageModelRepository)
 }

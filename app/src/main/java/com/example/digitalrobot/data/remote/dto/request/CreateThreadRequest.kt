@@ -1,7 +1,6 @@
 package com.example.digitalrobot.data.remote.dto.request
 
-import com.example.digitalrobot.domain.model.Message
-import com.example.digitalrobot.domain.model.ToolResources
+import com.example.digitalrobot.domain.model.llm.common.ToolResources
 
 data class CreateThreadRequest(
     val messages: List<CreateMessageRequest>? = null,

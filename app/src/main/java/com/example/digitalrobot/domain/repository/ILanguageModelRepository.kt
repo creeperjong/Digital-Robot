@@ -1,11 +1,12 @@
 package com.example.digitalrobot.domain.repository
 
-import com.example.digitalrobot.domain.model.Attachment
-import com.example.digitalrobot.domain.model.Assistant
-import com.example.digitalrobot.domain.model.Message
-import com.example.digitalrobot.domain.model.Run
-import com.example.digitalrobot.domain.model.Thread
-import com.example.digitalrobot.domain.model.ToolResources
+import com.example.digitalrobot.domain.model.llm.common.Attachment
+import com.example.digitalrobot.domain.model.llm.Assistant
+import com.example.digitalrobot.domain.model.llm.Message
+import com.example.digitalrobot.domain.model.llm.MessageList
+import com.example.digitalrobot.domain.model.llm.Run
+import com.example.digitalrobot.domain.model.llm.Thread
+import com.example.digitalrobot.domain.model.llm.common.ToolResources
 
 interface ILanguageModelRepository {
 
@@ -14,7 +15,7 @@ interface ILanguageModelRepository {
     ): Assistant
 
     suspend fun createThread(
-        toolResources: ToolResources
+        toolResources: ToolResources?
     ): Thread
 
     suspend fun createMessage(
@@ -37,5 +38,5 @@ interface ILanguageModelRepository {
 
     suspend fun listMessages(
         threadId: String
-    ): List<Message>
+    ): MessageList
 }

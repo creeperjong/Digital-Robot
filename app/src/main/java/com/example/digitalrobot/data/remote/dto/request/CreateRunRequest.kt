@@ -1,7 +1,7 @@
 package com.example.digitalrobot.data.remote.dto.request
 
-import com.example.digitalrobot.domain.model.Attachment
-import com.example.digitalrobot.domain.model.TruncationStrategy
+import com.example.digitalrobot.domain.model.llm.common.Attachment
+import com.example.digitalrobot.domain.model.llm.common.TruncationStrategy
 
 data class CreateRunRequest(
     val assistant_id: String,
