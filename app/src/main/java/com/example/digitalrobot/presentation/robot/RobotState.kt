@@ -8,7 +8,9 @@ import java.util.Locale
 data class RobotState(
     val deviceId: String = "",
     @RawRes val faceResId: Int = R.raw.smile,
-    val currentStage: RobotStage = RobotStage.Start, // TODO: Remember to reset once action is done
+    val inputMode: RobotInputMode = RobotInputMode.Start,
+    val ttsOn: Boolean = true,
+    val displayOn: Boolean = true,
 
     // TTS
     val isSpeaking: Boolean = false,

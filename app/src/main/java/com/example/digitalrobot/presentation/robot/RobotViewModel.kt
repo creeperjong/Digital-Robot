@@ -1,18 +1,23 @@
 package com.example.digitalrobot.presentation.robot
 
 import android.content.Context
+import android.util.Log
 import androidx.annotation.RawRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.digitalrobot.R
 import com.example.digitalrobot.domain.model.llm.Message
+import com.example.digitalrobot.domain.model.llm.common.Attachment
 import com.example.digitalrobot.domain.usecase.LanguageModelUseCase
 import com.example.digitalrobot.domain.usecase.MqttUseCase
 import com.example.digitalrobot.domain.usecase.SpeechToTextUseCase
 import com.example.digitalrobot.domain.usecase.TextToSpeechUseCase
+import com.example.digitalrobot.util.Constants.Robot
 import com.example.digitalrobot.util.Constants.Mqtt
 import com.example.digitalrobot.util.getNestedValueFromLinkedTreeMap
 import com.example.digitalrobot.util.getPropertyFromJsonString
+import com.example.digitalrobot.util.getValueFromLinkedTreeMap
+import com.google.gson.Gson
 import com.google.gson.internal.LinkedTreeMap
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -68,35 +73,95 @@ class RobotViewModel @Inject constructor(
     }
 
     /*
-     *  MQTT related functions
+     *  R&T related functions
      */
 
-    private fun onTap(bodyPart: RobotBodyPart?) {
-        // TODO: Manage touch mode
+    private fun onTap(bodyPart: RobotBodyPart) {
+        // TODO: Handle multitap when input mode is TouchSensor
+        // TODO: Handle disable tap mode
+        val inputMode = _state.value.inputMode
+        // Global handler
+        when (inputMode) {
+            is RobotInputMode.TouchSensor -> {
+                if (bodyPart in inputMode.targetBodyParts) {
+                    _state.value = _state.value.copy(inputMode = RobotInputMode.AutoSTT)
+                    sendPromptAndHandleResponse(bodyPart.touchedTag)
+                }
+            }
+            else -> {}
+        }
         when (bodyPart) {
             RobotBodyPart.HEAD -> {
 
             }
             RobotBodyPart.CHEST -> {
-
+                when (inputMode) {
+                    is RobotInputMode.ManualSTT -> {
+                        viewModelScope.launch { startSTT() }
+                    }
+                    else -> {}
+                }
             }
             RobotBodyPart.RIGHT_HAND -> {
 
             }
-            RobotBodyPart.LEFT_HEAD -> {
+            RobotBodyPart.LEFT_HAND -> {
 
             }
             RobotBodyPart.LEFT_FACE -> {
 
             }
             RobotBodyPart.RIGHT_FACE -> {
-                if (_state.value.currentStage is RobotStage.Start) {
-                    _state.value = _state.value.copy(currentStage = RobotStage.InProgress)
-                    startAssistant()
+                when (inputMode) {
+                    is RobotInputMode.Start -> {
+                        _state.value = _state.value.copy(
+                            ttsOn = true,
+                            displayOn = true
+                        )
+                        startAssistant()
+                    }
+                    else -> {}
                 }
             }
             null -> {}
         }
+    }
+
+    private fun onScan(uid: String) {
+        // TODO: Manage scan mode
+        // TODO: Scan NFC
+        val inputMode = _state.value.inputMode
+        when (inputMode) {
+            is RobotInputMode.ScanObject -> {
+                sendPromptAndHandleResponse(uid)
+            }
+            else -> {}
+        }
+    }
+
+    private fun sendCaptionToTablet(caption: String) {
+        mqttUseCase.publish(
+            topic = getFullTopic(topic = Mqtt.Topic.TTS),
+            message = caption,
+            qos = 0
+        )
+    }
+
+    private fun sendArgvToTablet(argv: String) {
+        mqttUseCase.publish(
+            topic = getFullTopic(topic = Mqtt.Topic.ARGV),
+            message = argv,
+            qos = 0
+        )
+    }
+
+    private fun sendImageIdsToTablet(imageIds: List<String>) {
+        val gson = Gson()
+        mqttUseCase.publish(
+            topic = getFullTopic(topic = Mqtt.Topic.IMAGE),
+            message = gson.toJson(imageIds),
+            qos = 0
+        )
     }
 
     /*
@@ -143,15 +208,30 @@ class RobotViewModel @Inject constructor(
     }
 
     private fun onMqttMessageArrived(topic: String, message: String) {
-        // TODO: Mqtt Message Received
         when (topic) {
             getFullTopic(Mqtt.Topic.ROBOT) -> {
-                val bodyPart = getPropertyFromJsonString(
+                val bodyPartId = getPropertyFromJsonString(
                     json = message,
                     propertyName = "BODYPART",
                     expectedType = String::class
+                )?.toInt()
+                val uid = getPropertyFromJsonString(
+                    json = message,
+                    propertyName = "UID",
+                    expectedType = String::class
                 )
-                onTap(RobotBodyPart.fromCode(bodyPart?.toInt()))
+                val bodyPart = RobotBodyPart.fromCode(bodyPartId)
+                if ( bodyPart != null ){
+                    onTap(bodyPart)
+                } else if ( uid != null ) {
+                    onScan(uid)
+                }
+            }
+            getFullTopic(Mqtt.Topic.ASST_ID) -> {
+                _state.value = _state.value.copy(assistantId = message)
+            }
+            getFullTopic(Mqtt.Topic.API_KEY) -> {
+                _state.value = _state.value.copy(gptApiKey = message)
             }
             else -> {}
         }
@@ -196,12 +276,9 @@ class RobotViewModel @Inject constructor(
             isSpeaking = false,
             faceResId = R.raw.smile
         )
-        when(_state.value.currentStage) {
-            // TODO: Manual STT and others
-            RobotStage.AutoSTT -> {
-                viewModelScope.launch {
-                    startSTT()
-                }
+        when(_state.value.inputMode) {
+            RobotInputMode.AutoSTT -> {
+                viewModelScope.launch { startSTT() }
             }
             else -> {}
         }
@@ -297,30 +374,106 @@ class RobotViewModel @Inject constructor(
             nestedKey = "text.value",
             expectedType = String::class
         ) ?: ""
+        val imageIds = extractImageIdsFromMessage(response)
+        Log.d("viewmodel", rawText)
+
+        // TODO: Handle annotations in Text (in ai2)
 
         // Handle tags in response
         val tags = extractTagsFromText(rawText)
         val text = removeTagsFromText(rawText)
-        for (tag in tags) {
+        var expression = R.raw.normal
+        for ((i, tag) in tags.withIndex()) {
             when (tag) {
                 "FINISH" -> {
-                    _state.value = _state.value.copy(currentStage = RobotStage.Start)
+                    _state.value = _state.value.copy(inputMode = RobotInputMode.Start)
                     break
                 }
                 "MANUAL STT" -> {
-                    _state.value = _state.value.copy(currentStage = RobotStage.ManualSTT)
+                    _state.value = _state.value.copy(inputMode = RobotInputMode.ManualSTT)
                 }
                 "AUTO STT" -> {
-                    _state.value = _state.value.copy(currentStage = RobotStage.AutoSTT)
+                    _state.value = _state.value.copy(inputMode = RobotInputMode.AutoSTT)
+                }
+                "INPUT SENSOR" -> {
+                    val targetBodyParts = mutableListOf<RobotBodyPart>()
+                    for (j in i + 1 until tags.size) {
+                        val bodyPart = RobotBodyPart.fromTouchedTag(touchedTag = tags[i])
+                        if (bodyPart != null) {
+                            targetBodyParts.add(bodyPart)
+                        }
+                    }
+                    _state.value = _state.value.copy(
+                        inputMode = RobotInputMode.TouchSensor(targetBodyParts = targetBodyParts)
+                    )
+                }
+                "INPUT SCAN" -> {
+                    _state.value = _state.value.copy(inputMode = RobotInputMode.ScanObject)
+                }
+                "TTS ON" -> {
+                    _state.value = _state.value.copy(ttsOn = true)
+                }
+                "TTS OFF" -> {
+                    _state.value = _state.value.copy(ttsOn = false)
+                }
+                "DISPLAY ON" -> {
+                    _state.value = _state.value.copy(displayOn = true)
+                }
+                "DISPLAY OFF" -> {
+                    _state.value = _state.value.copy(displayOn = false)
+                }
+                in Robot.EXPRESSION -> {
+                    expression = Robot.EXPRESSION[tag] ?: R.raw.normal
                 }
                 else -> {}
             }
         }
-        // TODO: Handle expression & motion tag
-        // TODO: Remove unexpected annotations & link in text of TTS
-        // TODO: Send image to tablet (MQTT)
-        startTTS(text = text, videoResId = R.raw.normal)
+        // TODO: Handle motion tag
 
+        // TODO: Test display off function
+        // TODO: Test manual stt
+        // TODO: Test sending images
+        // TODO: Test asstid apikey sent from tablet
+        // TODO: Test scan qrcode
+        val ttsText = if (_state.value.ttsOn) {
+            sanitizeTextForTTS(text)
+        } else {
+             when (_state.value.currentTTSLanguage) {
+                 Locale.US -> "The result has shown on the tablet."
+                 Locale.CHINESE -> "結果顯示於平板"
+                 else -> ""
+            }
+        }
+        sendImageIdsToTablet(imageIds)
+        sendArgvToTablet(if (_state.value.displayOn) "DISPLAY ON" else "DISPLAY OFF")
+        sendCaptionToTablet(text)
+        startTTS(text = ttsText, videoResId = expression)
+
+    }
+
+    private fun extractImageIdsFromMessage(message: Message): List<String> {
+        val result = mutableListOf<String>()
+
+        message.attachments?.forEach { attachment: Attachment ->
+            result.add(attachment.file_id ?: "")
+        }
+        message.content.forEach { content ->
+            val type = getValueFromLinkedTreeMap(
+                map = content as LinkedTreeMap<*, *>,
+                key = "type",
+                expectedType = String::class
+            )
+            if (type == "image_file") {
+                val fileId = getNestedValueFromLinkedTreeMap(
+                    map = content,
+                    nestedKey = "image_file.file_id",
+                    expectedType = String::class
+                )
+                result.add(fileId ?: "")
+            }
+        }
+
+        return result.filterNot { it.isEmpty() }
     }
 
     private fun extractTagsFromText(input: String): List<String> {
@@ -332,4 +485,16 @@ class RobotViewModel @Inject constructor(
         val regex = "\\[.*?]".toRegex()
         return input.replace(regex, "")
     }
+
+    private fun sanitizeTextForTTS(text: String): String {
+        var sanitizedText = text.replace("&", "and")
+        val unwantedSymbolsRegex = Regex("[_*#]")
+        val markdownImageRegex = Regex("!\\[.*?\\]\\(.*?\\)")
+
+        sanitizedText = sanitizedText.replace(unwantedSymbolsRegex, "")
+        sanitizedText = sanitizedText.replace(markdownImageRegex, "")
+
+        return sanitizedText
+    }
+
 }

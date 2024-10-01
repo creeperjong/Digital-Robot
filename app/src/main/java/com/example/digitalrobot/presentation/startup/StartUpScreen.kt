@@ -30,8 +30,8 @@ fun StartUpScreen(
             .fillMaxSize()
     ) {
         TextField(
-//            value = macAddress,
-            value = "B4:0B:1D:CF:9B:B7", // TODO: REMOVE THIS
+            value = macAddress,
+//            value = "B4:0B:1D:CF:9B:B7",
             onValueChange = { onEvent(StartUpEvent.ChangeMacAddress(it)) },
             placeholder = {
                 Text(text = "Please enter MAC address or scan QR code ...")

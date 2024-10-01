@@ -1,6 +1,27 @@
 package com.example.digitalrobot.util
 
+import androidx.annotation.RawRes
+import com.example.digitalrobot.R
+
 object Constants {
+
+    object Robot {
+
+        val EXPRESSION: Map<String, Int> = mapOf(
+            "SMILE" to R.raw.smile,
+            "ENJOYABLE" to R.raw.enjoyable,
+            "PLAYFUL" to R.raw.playful,
+            "EXCITED" to R.raw.excited,
+            "ADORATION" to R.raw.adoration,
+            "SAD" to R.raw.sad,
+            "CONFUSED" to R.raw.confused,
+            "SLOWEST" to R.raw.slowest,
+            "SLOWER" to R.raw.slower,
+            "NORMAL" to R.raw.normal
+        )
+
+        // TODO: Action map
+    }
 
     object Mqtt {
 
@@ -13,6 +34,14 @@ object Constants {
         const val PASSWORD = "rcslmqtt"
 
         object Topic {
+
+            const val TTS = "$BROKER_NAME/mqtt/TTS/{{deviceId}}"
+
+            const val STT = "$BROKER_NAME/mqtt/STT/{{deviceId}}"
+
+            const val IMAGE = "$BROKER_NAME/mqtt/image/{{deviceId}}"
+
+            const val ARGV = "$BROKER_NAME/mqtt/argv/{{deviceId}}"
 
             const val TEXT_INPUT = "$BROKER_NAME/mqtt/TextInput/{{deviceId}}"
 
