@@ -123,7 +123,6 @@ class RobotViewModel @Inject constructor(
                     else -> {}
                 }
             }
-            null -> {}
         }
     }
 
@@ -249,12 +248,25 @@ class RobotViewModel @Inject constructor(
         )
     }
 
+    private val _toastMessage = MutableStateFlow<String?>(null)
+    val toastMessage: StateFlow<String?> get() = _toastMessage
+
+    fun showDebugMessage(message: String) {
+        _toastMessage.value = message
+    }
+
+    // 清除訊息
+    fun clearToastMessage() {
+        _toastMessage.value = null
+    }
+
     private fun startTTS(text: String, @RawRes videoResId: Int) {
         _state.value = _state.value.copy(
             isSpeaking = true,
             lastSpokenText = text,
             faceResId = videoResId
         )
+
         textToSpeechUseCase.speak(text)
     }
 
@@ -322,9 +334,16 @@ class RobotViewModel @Inject constructor(
     private fun startAssistant() {
         viewModelScope.launch {
             val assistantId = _state.value.assistantId
-            val assistant = languageModelUseCase.retrieveAssistant(assistantId)
+            val gptApiKey = _state.value.gptApiKey
+            val assistant = languageModelUseCase.retrieveAssistant(
+                assistantId = assistantId,
+                gptApiKey = gptApiKey
+            )
             val toolResources = assistant.tool_resources
-            val threadId = languageModelUseCase.generateThreadId(toolResources)
+            val threadId = languageModelUseCase.generateThreadId(
+                toolResources = toolResources,
+                gptApiKey = gptApiKey
+            )
 
             _state.value = _state.value.copy(
                 assistantName = assistant.name ?: "",
@@ -338,32 +357,39 @@ class RobotViewModel @Inject constructor(
     private fun sendPromptAndHandleResponse(prompt: String) {
         val threadId = _state.value.threadId
         val assistantId = _state.value.assistantId
+        val gptApiKey = _state.value.gptApiKey
         viewModelScope.launch {
             languageModelUseCase.sendMessage(
                 threadId = threadId,
                 role = "user",
                 content = prompt,
-                attachments = null
+                attachments = null,
+                gptApiKey = gptApiKey
             )
 
             val runId = languageModelUseCase.generateAssistantRunId(
                 threadId = threadId,
                 assistantId = assistantId,
-                instructions = null
+                instructions = null,
+                gptApiKey = gptApiKey
             )
 
-            var status = ""
+            var status: String
             do {
                 status = languageModelUseCase.getRunStatus(
                     threadId = threadId,
-                    runId = runId
+                    runId = runId,
+                    gptApiKey = gptApiKey
                 )
                 if (status != "completed") {
                     delay(1000)
                 }
             } while (status != "completed")
 
-            val response = languageModelUseCase.getAssistantResponse(threadId = threadId)
+            val response = languageModelUseCase.getAssistantResponse(
+                threadId = threadId,
+                gptApiKey = gptApiKey
+            )
             handleResponse(response)
         }
     }
@@ -375,7 +401,6 @@ class RobotViewModel @Inject constructor(
             expectedType = String::class
         ) ?: ""
         val imageIds = extractImageIdsFromMessage(response)
-        Log.d("viewmodel", rawText)
 
         // TODO: Handle annotations in Text (in ai2)
 
@@ -429,6 +454,7 @@ class RobotViewModel @Inject constructor(
             }
         }
         // TODO: Handle motion tag
+        // TODO: STT subtitle
 
         // TODO: Test display off function
         // TODO: Test manual stt
@@ -489,7 +515,7 @@ class RobotViewModel @Inject constructor(
     private fun sanitizeTextForTTS(text: String): String {
         var sanitizedText = text.replace("&", "and")
         val unwantedSymbolsRegex = Regex("[_*#]")
-        val markdownImageRegex = Regex("!\\[.*?\\]\\(.*?\\)")
+        val markdownImageRegex = Regex("!\\[.*?]\\(.*?\\)")
 
         sanitizedText = sanitizedText.replace(unwantedSymbolsRegex, "")
         sanitizedText = sanitizedText.replace(markdownImageRegex, "")

@@ -11,32 +11,38 @@ import com.example.digitalrobot.domain.model.llm.common.ToolResources
 interface ILanguageModelRepository {
 
     suspend fun retrieveAssistant(
-        assistantId: String
+        assistantId: String,
+        apiKey: String
     ): Assistant
 
     suspend fun createThread(
-        toolResources: ToolResources?
+        toolResources: ToolResources?,
+        apiKey: String
     ): Thread
 
     suspend fun createMessage(
         threadId: String,
         role: String,
         content: Any,
-        attachments: List<Attachment>? = null
+        attachments: List<Attachment>? = null,
+        apiKey: String
     ): Message
 
     suspend fun createRun(
         threadId: String,
         assistantId: String,
-        instructions: String? = null
+        instructions: String? = null,
+        apiKey: String
     ): Run
 
     suspend fun retrieveRun(
         threadId: String,
-        runId: String
+        runId: String,
+        apiKey: String
     ): Run
 
     suspend fun listMessages(
-        threadId: String
+        threadId: String,
+        apiKey: String
     ): MessageList
 }

@@ -9,55 +9,69 @@ import com.example.digitalrobot.domain.repository.ILanguageModelRepository
 class LanguageModelUseCase(
     private val languageModelRepository: ILanguageModelRepository
 ) {
-    suspend fun retrieveAssistant(assistantId: String): Assistant {
-        return languageModelRepository.retrieveAssistant(assistantId)
+    suspend fun retrieveAssistant(assistantId: String, gptApiKey: String): Assistant {
+        return languageModelRepository.retrieveAssistant(
+            assistantId = assistantId,
+            apiKey = gptApiKey
+        )
     }
 
-    suspend fun generateThreadId(toolResources: ToolResources?): String {
-        return languageModelRepository.createThread(toolResources).id
+    suspend fun generateThreadId(toolResources: ToolResources?, gptApiKey: String): String {
+        return languageModelRepository.createThread(
+            toolResources = toolResources,
+            apiKey = gptApiKey
+        ).id
     }
 
     suspend fun sendMessage(
         threadId: String,
         role: String,
         content: Any,
-        attachments: List<Attachment>? = null
+        attachments: List<Attachment>? = null,
+        gptApiKey: String
     ) {
         languageModelRepository.createMessage(
             threadId = threadId,
             role = role,
             content = content,
-            attachments = attachments
+            attachments = attachments,
+            apiKey = gptApiKey
         )
     }
 
     suspend fun generateAssistantRunId(
         threadId: String,
         assistantId: String,
-        instructions: String?
+        instructions: String?,
+        gptApiKey: String
     ): String {
         return languageModelRepository.createRun(
             threadId = threadId,
             assistantId = assistantId,
-            instructions = instructions
+            instructions = instructions,
+            apiKey = gptApiKey
         ).id
     }
 
     suspend fun getRunStatus(
         threadId: String,
-        runId: String
+        runId: String,
+        gptApiKey: String
     ): String {
         return languageModelRepository.retrieveRun(
             threadId = threadId,
-            runId = runId
+            runId = runId,
+            apiKey = gptApiKey
         ).status
     }
 
     suspend fun getAssistantResponse(
-        threadId: String
+        threadId: String,
+        gptApiKey: String
     ): Message? {
         return languageModelRepository.listMessages(
-            threadId = threadId
+            threadId = threadId,
+            apiKey = gptApiKey
         ).data.firstOrNull()
     }
 }

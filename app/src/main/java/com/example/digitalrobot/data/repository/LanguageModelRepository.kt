@@ -19,10 +19,11 @@ class LanguageModelRepository(
     private val languageModelApi: LanguageModelApi
 ): ILanguageModelRepository {
 
-    override suspend fun retrieveAssistant(assistantId: String): Assistant {
+    override suspend fun retrieveAssistant(assistantId: String, apiKey: String): Assistant {
         return try {
             languageModelApi.retrieveAssistant(
-                assistantId = assistantId
+                assistantId = assistantId,
+                apiKey = apiKey
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -30,10 +31,11 @@ class LanguageModelRepository(
         }
     }
 
-    override suspend fun createThread(toolResources: ToolResources?): Thread {
+    override suspend fun createThread(toolResources: ToolResources?, apiKey: String): Thread {
         return try {
             languageModelApi.createThread(
-                request = CreateThreadRequest(tool_resources = toolResources)
+                request = CreateThreadRequest(tool_resources = toolResources),
+                apiKey = apiKey
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -45,7 +47,8 @@ class LanguageModelRepository(
         threadId: String,
         role: String,
         content: Any,
-        attachments: List<Attachment>?
+        attachments: List<Attachment>?,
+        apiKey: String
     ): Message {
         return try {
             languageModelApi.createMessage(
@@ -54,7 +57,8 @@ class LanguageModelRepository(
                     content = content,
                     attachments = attachments
                 ),
-                threadId = threadId
+                threadId = threadId,
+                apiKey = apiKey
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -65,12 +69,14 @@ class LanguageModelRepository(
     override suspend fun createRun(
         threadId: String,
         assistantId: String,
-        instructions: String?
+        instructions: String?,
+        apiKey: String
     ): Run {
         return try {
             languageModelApi.createRun(
                 request = CreateRunRequest(assistant_id = assistantId, instructions = instructions),
-                threadId = threadId
+                threadId = threadId,
+                apiKey = apiKey
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -78,11 +84,12 @@ class LanguageModelRepository(
         }
     }
 
-    override suspend fun retrieveRun(threadId: String, runId: String): Run {
+    override suspend fun retrieveRun(threadId: String, runId: String, apiKey: String): Run {
         return try {
             languageModelApi.retrieveRun(
                 threadId = threadId,
-                runId = runId
+                runId = runId,
+                apiKey = apiKey
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -90,10 +97,11 @@ class LanguageModelRepository(
         }
     }
 
-    override suspend fun listMessages(threadId: String): MessageList {
+    override suspend fun listMessages(threadId: String, apiKey: String): MessageList {
         return try {
             languageModelApi.listMessages(
-                threadId = threadId
+                threadId = threadId,
+                apiKey = apiKey
             )
         } catch (e: Exception) {
             e.printStackTrace()

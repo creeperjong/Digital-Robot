@@ -19,34 +19,40 @@ interface LanguageModelApi {
 
     @GET("assistants/{assistantId}")
     suspend fun retrieveAssistant(
-        @Path("assistantId") assistantId: String
+        @Path("assistantId") assistantId: String,
+        @Header("Authorization") apiKey: String
     ): Assistant
 
     @POST("threads")
     suspend fun createThread(
-        @Body request: CreateThreadRequest
+        @Body request: CreateThreadRequest,
+        @Header("Authorization") apiKey: String
     ): Thread
 
     @POST("threads/{threadId}/messages")
     suspend fun createMessage(
         @Body request: CreateMessageRequest,
-        @Path("threadId") threadId: String
+        @Path("threadId") threadId: String,
+        @Header("Authorization") apiKey: String
     ): Message
 
     @GET("threads/{threadId}/messages")
     suspend fun listMessages(
-        @Path("threadId") threadId: String
+        @Path("threadId") threadId: String,
+        @Header("Authorization") apiKey: String
     ): MessageList
 
     @POST("threads/{threadId}/runs")
     suspend fun createRun(
         @Body request: CreateRunRequest,
-        @Path("threadId") threadId: String
+        @Path("threadId") threadId: String,
+        @Header("Authorization") apiKey: String
     ): Run
 
     @GET("threads/{threadId}/runs/{runId}")
     suspend fun retrieveRun(
         @Path("threadId") threadId: String,
-        @Path("runId") runId: String
+        @Path("runId") runId: String,
+        @Header("Authorization") apiKey: String
     ): Run
 }
