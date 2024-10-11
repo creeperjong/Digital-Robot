@@ -7,7 +7,9 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import javax.inject.Inject
@@ -15,11 +17,13 @@ import javax.inject.Inject
 class SpeechToTextUseCase (
     private val speechRecognizer: SpeechRecognizer
 ) {
+    private var manualStop: Boolean = false
 
     suspend fun startListening(
+        keepListening: Boolean,
         language: Locale = Locale.US,
-        keepListening: Boolean = true,
-        onSTTDone: (String) -> Unit
+        onSTTPartialResult: (String) -> Unit,
+        onSTTDone: (String) -> Unit,
     ) {
         withContext(Dispatchers.Main) {
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -27,7 +31,7 @@ class SpeechToTextUseCase (
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, language.toString())
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, language.toString())
                 putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, language.toString())
-                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, keepListening)
             }
 
             speechRecognizer.setRecognitionListener(object: RecognitionListener {
@@ -41,8 +45,10 @@ class SpeechToTextUseCase (
 
                 override fun onEndOfSpeech() {}
 
-                override fun onError(p0: Int) {
-                    if (keepListening) {
+                override fun onError(errorCode: Int) {
+                    if (manualStop) {
+                        manualStop = false
+                    } else {
                         speechRecognizer.startListening(intent)
                     }
                 }
@@ -50,13 +56,18 @@ class SpeechToTextUseCase (
                 override fun onResults(results: Bundle) {
                     val matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     if (!matches.isNullOrEmpty()) {
-                        onSTTDone(matches[0])
-                    } else if (keepListening) {
+                        if (keepListening) {
+                            onSTTPartialResult(matches[0])
+                            speechRecognizer.startListening(intent)
+                        } else {
+                            onSTTDone(matches[0])
+                        }
+                    } else {
                         speechRecognizer.startListening(intent)
                     }
                 }
 
-                override fun onPartialResults(p0: Bundle?) {}
+                override fun onPartialResults(results: Bundle?) {}
 
                 override fun onEvent(p0: Int, p1: Bundle?) {}
 
@@ -66,7 +77,10 @@ class SpeechToTextUseCase (
     }
 
     fun stopListening() {
-        speechRecognizer.stopListening()
+        manualStop = true
+        CoroutineScope(Dispatchers.Main).launch {
+            speechRecognizer.stopListening()
+        }
     }
 
 

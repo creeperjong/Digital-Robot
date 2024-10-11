@@ -10,6 +10,7 @@ data class RobotState(
     val toastMessages: List<String> = emptyList(),
 
     // R&T
+    val username: String = "Leaner",
     val deviceId: String = "",
     @RawRes val faceResId: Int = R.raw.smile,
     val inputMode: RobotInputMode = RobotInputMode.Start,
@@ -25,6 +26,7 @@ data class RobotState(
     // STT
     val isListening: Boolean = false,
     val currentSTTLanguage: Locale = Locale.CHINESE,
+    val resultBuffer: String = "",
 
     // LLM
     val gptApiKey: String = "",

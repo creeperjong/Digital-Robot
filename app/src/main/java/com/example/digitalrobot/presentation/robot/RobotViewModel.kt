@@ -1,6 +1,7 @@
 package com.example.digitalrobot.presentation.robot
 
 import android.content.Context
+import android.util.Log
 import androidx.annotation.RawRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -122,7 +123,13 @@ class RobotViewModel @Inject constructor(
             RobotBodyPart.CHEST -> {
                 when (inputMode) {
                     is RobotInputMode.ManualSTT -> {
-                        viewModelScope.launch { startSTT() } // TODO: Press again to end stt
+                        if (_state.value.isListening) {
+                            stopSTT()
+                            onSTTDone(_state.value.resultBuffer)
+                            _state.value = _state.value.copy(resultBuffer = "")
+                        } else {
+                            viewModelScope.launch { startSTT(keepListening = true) }
+                        }
                     }
                     else -> {}
                 }
@@ -179,6 +186,14 @@ class RobotViewModel @Inject constructor(
         mqttUseCase.publish(
             topic = getFullTopic(topic = Mqtt.Topic.TTS),
             message = caption,
+            qos = 0
+        )
+    }
+
+    private fun sendSTTResultToTablet(result: String) {
+        mqttUseCase.publish(
+            topic = getFullTopic(topic = Mqtt.Topic.STT),
+            message = "${_state.value.username}: $result",
             qos = 0
         )
     }
@@ -246,6 +261,11 @@ class RobotViewModel @Inject constructor(
     private fun onMqttMessageArrived(topic: String, message: String) {
         when (topic) {
             getFullTopic(Mqtt.Topic.ROBOT) -> {
+                val username = getPropertyFromJsonString(
+                    json = message,
+                    propertyName = "USERNAME",
+                    expectedType = String::class
+                )
                 val bodyPartId = getPropertyFromJsonString(
                     json = message,
                     propertyName = "BODYPART",
@@ -261,6 +281,9 @@ class RobotViewModel @Inject constructor(
                     onTap(bodyPart)
                 } else if ( uid != null ) {
                     onScan(uid)
+                }
+                if (!username.isNullOrEmpty()) {
+                    _state.value = _state.value.copy(username = username)
                 }
             }
             getFullTopic(Mqtt.Topic.ASST_ID) -> {
@@ -332,13 +355,15 @@ class RobotViewModel @Inject constructor(
      *  SpeechToText related functions
      */
 
-    private suspend fun startSTT() {
+    private suspend fun startSTT(keepListening: Boolean = false) {
         val language = _state.value.currentSTTLanguage
         _state.value = _state.value.copy(isListening = true)
-        speechToTextUseCase.startListening(language = language) { result ->
-            _state.value = _state.value.copy(isListening = false)
-            sendPromptAndHandleResponse(result)
-        }
+        speechToTextUseCase.startListening(
+            language = language,
+            keepListening = keepListening,
+            onSTTPartialResult = { result -> onSTTPartialResult(result) },
+            onSTTDone = { result -> onSTTDone(result) }
+        )
     }
 
     private fun stopSTT() {
@@ -350,6 +375,17 @@ class RobotViewModel @Inject constructor(
 
     private fun changeSTTLanguage(locale: Locale) {
         _state.value = _state.value.copy(currentSTTLanguage = locale)
+    }
+
+    private fun onSTTDone(result: String) {
+        _state.value = _state.value.copy(isListening = false)
+        sendSTTResultToTablet(result)
+        sendPromptAndHandleResponse(result)
+    }
+
+    private fun onSTTPartialResult(result: String) {
+        val prevResult = _state.value.resultBuffer
+        _state.value = _state.value.copy(resultBuffer = "${prevResult}$result")
     }
 
     /*
