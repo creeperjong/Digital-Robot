@@ -5,6 +5,7 @@ import com.example.digitalrobot.data.remote.dto.request.CreateRunRequest
 import com.example.digitalrobot.data.remote.dto.request.CreateMessageRequest
 import com.example.digitalrobot.domain.model.llm.Thread
 import com.example.digitalrobot.domain.model.llm.Assistant
+import com.example.digitalrobot.domain.model.llm.AssistantList
 import com.example.digitalrobot.domain.model.llm.Run
 import com.example.digitalrobot.domain.model.llm.Message
 import com.example.digitalrobot.domain.model.llm.MessageList
@@ -16,6 +17,11 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 
 interface LanguageModelApi {
+
+    @GET("assistants")
+    suspend fun listAssistants(
+        @Header("Authorization") apiKey: String
+    ): AssistantList
 
     @GET("assistants/{assistantId}")
     suspend fun retrieveAssistant(

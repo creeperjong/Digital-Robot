@@ -2,6 +2,7 @@ package com.example.digitalrobot.domain.repository
 
 import com.example.digitalrobot.domain.model.llm.common.Attachment
 import com.example.digitalrobot.domain.model.llm.Assistant
+import com.example.digitalrobot.domain.model.llm.AssistantList
 import com.example.digitalrobot.domain.model.llm.Message
 import com.example.digitalrobot.domain.model.llm.MessageList
 import com.example.digitalrobot.domain.model.llm.Run
@@ -9,6 +10,10 @@ import com.example.digitalrobot.domain.model.llm.Thread
 import com.example.digitalrobot.domain.model.llm.common.ToolResources
 
 interface ILanguageModelRepository {
+
+    suspend fun listAssistants(
+        apiKey: String
+    ): AssistantList
 
     suspend fun retrieveAssistant(
         assistantId: String,

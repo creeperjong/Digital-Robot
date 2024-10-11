@@ -11,10 +11,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.digitalrobot.BuildConfig
 import com.example.digitalrobot.presentation.robot.RobotScreen
 import com.example.digitalrobot.presentation.robot.RobotViewModel
 import com.example.digitalrobot.presentation.startup.QrCodeScannerScreen
 import com.example.digitalrobot.presentation.startup.StartUpScreen
+import com.example.digitalrobot.presentation.startup.StartUpState
 import com.example.digitalrobot.presentation.startup.StartUpViewModel
 
 @Composable
@@ -24,13 +26,16 @@ fun NavGraph() {
 
     NavHost(navController = navController, startDestination = Route.StartUpScreen.route) {
         composable(route = Route.StartUpScreen.route) {
-            val macAddress by startUpViewModel.macAddress.collectAsState()
+            val state by startUpViewModel.state.collectAsState()
             StartUpScreen(
-                macAddress = macAddress,
+                state = state,
                 onEvent = startUpViewModel::onEvent,
                 navigateToScanner = { navController.navigate(Route.QrCodeScannerScreen.route) },
-                navigateToRobot = { macAddressArg ->
-                    navController.navigate("${Route.RobotScreen.route}/$macAddressArg")
+                navigateToRobot = { connectInfo ->
+                    navController.currentBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("connectInfo", connectInfo)
+                    navController.navigate(Route.RobotScreen.route)
                 }
             )
         }
@@ -40,21 +45,21 @@ fun NavGraph() {
                 navigateUp = { navController.popBackStack() }
             )
         }
-        composable(
-            route = "${Route.RobotScreen.route}/{${Route.RobotScreen.argName}}",
-            arguments = listOf(
-                navArgument(Route.RobotScreen.argName!!) {
-                    type = NavType.StringType
-                }
-            )
-        ) { navBackStackEntry ->
-            val macAddress = navBackStackEntry.arguments?.getString(Route.RobotScreen.argName) ?: ""
+        composable(route = Route.RobotScreen.route) {
             val robotViewModel: RobotViewModel = hiltViewModel()
             val state by robotViewModel.state.collectAsState()
 
-            LaunchedEffect(macAddress) {
-                robotViewModel.setMacAddress(macAddress)
-            }
+            navController.previousBackStackEntry
+                ?.savedStateHandle
+                ?.get<StartUpState>("connectInfo")
+                .let { connectInfo ->
+                    robotViewModel.setConnectInfos(
+                        deviceId = connectInfo?.macAddress ?: "",
+                        gptApiKey = connectInfo?.gptApiKey ?: BuildConfig.MAKING_PROMPTS_INVISIBLE,
+                        assistantId = connectInfo?.assistantId ?: BuildConfig.DEFAULT_MPI_ASSISTANT_ID,
+                        assistantName = connectInfo?.assistantName ?: ""
+                    )
+                }
 
             RobotScreen(
                 state = state,

@@ -17,3 +17,8 @@ data class Assistant(
     val top_p: Double? = null,
     val response_format: Any
 )
+
+data class AssistantList(
+    val `object`: String,
+    val data: List<Assistant>
+)

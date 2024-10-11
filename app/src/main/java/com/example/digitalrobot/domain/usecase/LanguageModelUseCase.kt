@@ -1,6 +1,7 @@
 package com.example.digitalrobot.domain.usecase
 
 import com.example.digitalrobot.domain.model.llm.Assistant
+import com.example.digitalrobot.domain.model.llm.AssistantList
 import com.example.digitalrobot.domain.model.llm.common.Attachment
 import com.example.digitalrobot.domain.model.llm.Message
 import com.example.digitalrobot.domain.model.llm.common.ToolResources
@@ -9,6 +10,12 @@ import com.example.digitalrobot.domain.repository.ILanguageModelRepository
 class LanguageModelUseCase(
     private val languageModelRepository: ILanguageModelRepository
 ) {
+    suspend fun getAssistantList(gptApiKey: String): List<Assistant> {
+        return languageModelRepository.listAssistants(
+            apiKey = gptApiKey
+        ).data
+    }
+
     suspend fun retrieveAssistant(assistantId: String, gptApiKey: String): Assistant {
         return languageModelRepository.retrieveAssistant(
             assistantId = assistantId,

@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.jetbrains.kotlin.android)
     id("kotlin-kapt")
     id("com.google.dagger.hilt.android")
+    id("kotlin-parcelize")
 }
 
 android {
@@ -24,14 +25,17 @@ android {
         }
 
         val keystoreFile = project.rootProject.file("apikeys.properties")
-        val properties = Properties()
-        properties.load(keystoreFile.inputStream())
-        val gptApiKey = properties.getProperty("GPT_API_KEY") ?: ""
-        buildConfigField(
-            type = "String",
-            name = "GPT_API_KEY",
-            value = gptApiKey
-        )
+        if (keystoreFile.exists()) {
+            val properties = Properties()
+            properties.load(keystoreFile.inputStream())
+            properties.forEach { (key, value) ->
+                buildConfigField(
+                    type = "String",
+                    name = key.toString(),
+                    value = value.toString()
+                )
+            }
+        }
     }
 
     buildTypes {
@@ -114,6 +118,7 @@ dependencies {
 
     // Reflection
     implementation(libs.kotlin.reflect)
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

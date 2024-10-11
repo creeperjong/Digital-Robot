@@ -1,8 +1,6 @@
 package com.example.digitalrobot.presentation.robot
 
 import android.content.Context
-import android.util.Log
-import android.widget.Toast
 import androidx.annotation.RawRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -28,7 +26,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Locale
 import javax.inject.Inject
-import kotlin.reflect.jvm.internal.impl.descriptors.Visibilities.Local
 
 @HiltViewModel
 class RobotViewModel @Inject constructor(
@@ -42,17 +39,22 @@ class RobotViewModel @Inject constructor(
     val state: StateFlow<RobotState> = _state.asStateFlow()
 
     private fun showToast(message: String) {
-        val currentMessages = _state.value.toastMsgs.toMutableList()
+        val currentMessages = _state.value.toastMessages.toMutableList()
         currentMessages.add(message)
-        _state.value = _state.value.copy(toastMsgs = currentMessages)
+        _state.value = _state.value.copy(toastMessages = currentMessages)
     }
 
     private fun clearToast() {
-        _state.value = _state.value.copy(toastMsgs = emptyList())
+        _state.value = _state.value.copy(toastMessages = emptyList())
     }
 
-    fun setMacAddress(macAddress: String) {
-        _state.value = _state.value.copy(deviceId = macAddress)
+    fun setConnectInfos(deviceId: String, gptApiKey: String, assistantId: String, assistantName: String) {
+        _state.value = _state.value.copy(
+            deviceId = deviceId,
+            gptApiKey = gptApiKey,
+            assistantId = assistantId,
+            assistantName = assistantName
+        )
     }
 
     fun onEvent(event: RobotEvent) {
@@ -120,7 +122,7 @@ class RobotViewModel @Inject constructor(
             RobotBodyPart.CHEST -> {
                 when (inputMode) {
                     is RobotInputMode.ManualSTT -> {
-                        viewModelScope.launch { startSTT() }
+                        viewModelScope.launch { startSTT() } // TODO: Press again to end stt
                     }
                     else -> {}
                 }
@@ -332,9 +334,7 @@ class RobotViewModel @Inject constructor(
 
     private suspend fun startSTT() {
         val language = _state.value.currentSTTLanguage
-        _state.value = _state.value.copy(
-            isListening = true
-        )
+        _state.value = _state.value.copy(isListening = true)
         speechToTextUseCase.startListening(language = language) { result ->
             _state.value = _state.value.copy(isListening = false)
             sendPromptAndHandleResponse(result)
@@ -374,10 +374,7 @@ class RobotViewModel @Inject constructor(
                 gptApiKey = gptApiKey
             )
 
-            _state.value = _state.value.copy(
-                assistantName = assistant.name ?: "",
-                threadId = threadId
-            )
+            _state.value = _state.value.copy(threadId = threadId)
 
             sendPromptAndHandleResponse(prompt = "Start")
         }

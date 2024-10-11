@@ -7,7 +7,7 @@ import java.util.Locale
 
 data class RobotState(
 
-    val toastMsgs: List<String> = emptyList(),
+    val toastMessages: List<String> = emptyList(),
 
     // R&T
     val deviceId: String = "",
@@ -27,8 +27,8 @@ data class RobotState(
     val currentSTTLanguage: Locale = Locale.CHINESE,
 
     // LLM
-    val gptApiKey: String = BuildConfig.GPT_API_KEY,
-    val assistantId: String = "asst_KCweIllefg63HwiQvVVae9W2",
+    val gptApiKey: String = "",
+    val assistantId: String = "",
     val assistantName: String = "",
     val threadId: String = ""
 )

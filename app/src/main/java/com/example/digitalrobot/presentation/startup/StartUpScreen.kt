@@ -16,20 +16,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.digitalrobot.presentation.Dimens.MediumPadding
 import com.example.digitalrobot.presentation.Dimens.SmallPadding
+import com.example.digitalrobot.presentation.robot.component.DropdownMenu
 import com.example.digitalrobot.ui.theme.DigitalRobotTheme
 
 @Composable
 fun StartUpScreen(
-    macAddress: String,
+    state: StartUpState,
     onEvent: (StartUpEvent) -> Unit,
     navigateToScanner: () -> Unit,
-    navigateToRobot: (String) -> Unit
+    navigateToRobot: (StartUpState) -> Unit
 ) {
 
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         onEvent(StartUpEvent.InitSharedPreferences(context))
+        onEvent(StartUpEvent.SetAssistantList(state.gptApiKey))
     }
 
     Column(
@@ -38,9 +40,8 @@ fun StartUpScreen(
             .fillMaxSize()
     ) {
         TextField(
-            value = macAddress,
-//            value = "B4:0B:1D:CF:9B:B7",
-            onValueChange = { onEvent(StartUpEvent.ChangeMacAddress(it)) },
+            value = state.macAddress,
+            onValueChange = { onEvent(StartUpEvent.SetMacAddress(it)) },
             placeholder = {
                 Text(text = "Please enter MAC address or scan QR code ...")
             },
@@ -49,6 +50,31 @@ fun StartUpScreen(
                 .fillMaxWidth()
                 .padding(SmallPadding)
         )
+
+        DropdownMenu(
+            label = "Project",
+            text = state.projectName,
+            options = state.projectOptions.keys.toList(),
+            onSelected = {
+                onEvent(StartUpEvent.SetProject(projectName = it))
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(SmallPadding)
+        )
+
+        DropdownMenu(
+            label = "Assistant",
+            text = state.assistantName,
+            options = state.assistantOptions.keys.toList(),
+            onSelected = {
+                onEvent(StartUpEvent.SetAssistant(assistantName = it))
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(SmallPadding)
+        )
+
         Button(
             onClick = { navigateToScanner() },
             colors = ButtonDefaults.buttonColors(
@@ -62,13 +88,14 @@ fun StartUpScreen(
         ) {
             Text(text = "Scan QR Code")
         }
-        Button(onClick = { navigateToRobot(macAddress.trim()) },
+
+        Button(onClick = { navigateToRobot(state) },
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ),
             shape = MaterialTheme.shapes.large,
-            enabled = macAddress.isNotBlank(),
+            enabled = state.macAddress.isNotBlank(),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(SmallPadding)
@@ -83,7 +110,7 @@ fun StartUpScreen(
 private fun StartUpScreenPreview() {
     DigitalRobotTheme {
         StartUpScreen(
-            macAddress = "",
+            state = StartUpState(),
             onEvent = {},
             navigateToScanner = {},
             navigateToRobot = {}

@@ -1,20 +1,14 @@
 package com.example.digitalrobot.presentation.robot
 
 import android.Manifest
-import android.util.Log
-import android.widget.Toast
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.digitalrobot.presentation.robot.component.VideoPlayer
 import com.example.digitalrobot.util.ToastManager
 
@@ -29,7 +23,7 @@ fun RobotScreen(
         onResult = {}
     )
 
-    state.toastMsgs.let {
+    state.toastMessages.let {
         if (it.isNotEmpty()) {
             for (msg in it){
                 ToastManager.showToast(context, msg)

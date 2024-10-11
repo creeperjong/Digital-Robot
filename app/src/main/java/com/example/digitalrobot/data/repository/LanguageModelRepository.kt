@@ -8,6 +8,7 @@ import com.example.digitalrobot.data.remote.dto.request.CreateRunRequest
 import com.example.digitalrobot.domain.model.llm.common.Attachment
 import com.example.digitalrobot.data.remote.dto.request.CreateThreadRequest
 import com.example.digitalrobot.domain.model.llm.Assistant
+import com.example.digitalrobot.domain.model.llm.AssistantList
 import com.example.digitalrobot.domain.model.llm.Message
 import com.example.digitalrobot.domain.model.llm.MessageList
 import com.example.digitalrobot.domain.model.llm.Run
@@ -18,6 +19,17 @@ import com.example.digitalrobot.domain.repository.ILanguageModelRepository
 class LanguageModelRepository(
     private val languageModelApi: LanguageModelApi
 ): ILanguageModelRepository {
+
+    override suspend fun listAssistants(apiKey: String): AssistantList {
+        return try {
+            languageModelApi.listAssistants(
+                apiKey = apiKey
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw e
+        }
+    }
 
     override suspend fun retrieveAssistant(assistantId: String, apiKey: String): Assistant {
         return try {
