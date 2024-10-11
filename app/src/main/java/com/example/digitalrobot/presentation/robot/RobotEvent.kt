@@ -6,6 +6,8 @@ import java.util.Locale
 
 sealed class RobotEvent {
 
+    data object ClearToastMsg: RobotEvent()
+
     data object ConnectMqttBroker: RobotEvent()
 
     data object DisconnectMqttBroker: RobotEvent()
@@ -15,6 +17,8 @@ sealed class RobotEvent {
     data class StartTTS(val text: String, @RawRes val videoResId: Int): RobotEvent()
 
     data object StopTTS: RobotEvent()
+
+    data object DestroyTTS: RobotEvent()
 
     data class ChangeTTSLanguage(val locale: Locale): RobotEvent()
 

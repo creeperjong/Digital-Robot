@@ -88,7 +88,7 @@ fun QrCodeScannerScreen(
                     preview.setSurfaceProvider(previewView.surfaceProvider)
                     val imageAnalysis = ImageAnalysis.Builder()
                         .setTargetResolution(screenSize)
-                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_BLOCK_PRODUCER)
+                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build()
                     imageAnalysis.setAnalyzer(
                         ContextCompat.getMainExecutor(context),

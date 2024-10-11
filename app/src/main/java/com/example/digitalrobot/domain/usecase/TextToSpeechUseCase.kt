@@ -3,6 +3,7 @@ package com.example.digitalrobot.domain.usecase
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import android.util.Log
 import java.util.Locale
 
 class TextToSpeechUseCase() {
@@ -43,5 +44,6 @@ class TextToSpeechUseCase() {
     fun cleanUp() {
         tts?.stop()
         tts?.shutdown()
+        tts = null
     }
 }

@@ -6,6 +6,10 @@ import com.example.digitalrobot.R
 import java.util.Locale
 
 data class RobotState(
+
+    val toastMsgs: List<String> = emptyList(),
+
+    // R&T
     val deviceId: String = "",
     @RawRes val faceResId: Int = R.raw.smile,
     val inputMode: RobotInputMode = RobotInputMode.Start,
@@ -15,6 +19,7 @@ data class RobotState(
     // TTS
     val isSpeaking: Boolean = false,
     val lastSpokenText: String = "",
+    @RawRes val lastSpokenFaceResId: Int = R.raw.normal,
     val currentTTSLanguage: Locale = Locale.CHINESE,
 
     // STT
@@ -25,6 +30,5 @@ data class RobotState(
     val gptApiKey: String = BuildConfig.GPT_API_KEY,
     val assistantId: String = "asst_KCweIllefg63HwiQvVVae9W2",
     val assistantName: String = "",
-    val threadId: String = "",
-
-    )
+    val threadId: String = ""
+)

@@ -1,7 +1,6 @@
 package com.example.digitalrobot.di
 
 import android.app.Application
-import android.content.Context
 import android.speech.SpeechRecognizer
 import androidx.media3.common.C.Priority
 import com.example.digitalrobot.data.remote.LanguageModelApi
@@ -22,6 +21,7 @@ import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
@@ -60,6 +60,9 @@ object AppModule {
     @Singleton
     fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(LanguageModelHeaderInterceptor())
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
     @Provides

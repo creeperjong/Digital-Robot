@@ -2,6 +2,7 @@ package com.example.digitalrobot.presentation.robot
 
 import android.content.Context
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RawRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Locale
 import javax.inject.Inject
+import kotlin.reflect.jvm.internal.impl.descriptors.Visibilities.Local
 
 @HiltViewModel
 class RobotViewModel @Inject constructor(
@@ -39,12 +41,25 @@ class RobotViewModel @Inject constructor(
     private val _state = MutableStateFlow(RobotState())
     val state: StateFlow<RobotState> = _state.asStateFlow()
 
+    private fun showToast(message: String) {
+        val currentMessages = _state.value.toastMsgs.toMutableList()
+        currentMessages.add(message)
+        _state.value = _state.value.copy(toastMsgs = currentMessages)
+    }
+
+    private fun clearToast() {
+        _state.value = _state.value.copy(toastMsgs = emptyList())
+    }
+
     fun setMacAddress(macAddress: String) {
         _state.value = _state.value.copy(deviceId = macAddress)
     }
 
     fun onEvent(event: RobotEvent) {
         when (event) {
+            is RobotEvent.ClearToastMsg -> {
+                clearToast()
+            }
             is RobotEvent.ConnectMqttBroker -> {
                 connectMqtt()
             }
@@ -59,6 +74,9 @@ class RobotViewModel @Inject constructor(
             }
             is RobotEvent.StopTTS -> {
                 stopTTS()
+            }
+            is RobotEvent.DestroyTTS -> {
+                destroyTTS()
             }
             is RobotEvent.ChangeTTSLanguage -> {
                 changeTTSLanguage(event.locale)
@@ -77,8 +95,8 @@ class RobotViewModel @Inject constructor(
      */
 
     private fun onTap(bodyPart: RobotBodyPart) {
+        // TODO: isListening & isSpeaking mode management
         // TODO: Handle multitap when input mode is TouchSensor
-        // TODO: Handle disable tap mode
         val inputMode = _state.value.inputMode
         // Global handler
         when (inputMode) {
@@ -92,7 +110,12 @@ class RobotViewModel @Inject constructor(
         }
         when (bodyPart) {
             RobotBodyPart.HEAD -> {
-
+                stopTTS()
+                stopSTT()
+                startTTS(
+                    text = _state.value.lastSpokenText,
+                    videoResId = _state.value.lastSpokenFaceResId
+                )
             }
             RobotBodyPart.CHEST -> {
                 when (inputMode) {
@@ -109,12 +132,24 @@ class RobotViewModel @Inject constructor(
 
             }
             RobotBodyPart.LEFT_FACE -> {
-
+                when (_state.value.currentTTSLanguage) {
+                    Locale.US -> { changeTTSLanguage(Locale.CHINESE) }
+                    Locale.CHINESE -> { changeTTSLanguage(Locale.US) }
+                    else -> {}
+                }
+                when (_state.value.currentSTTLanguage) {
+                    Locale.US -> { changeSTTLanguage(Locale.CHINESE) }
+                    Locale.CHINESE -> { changeSTTLanguage(Locale.US) }
+                    else -> {}
+                }
+                showToast("Switch TTS language to ${_state.value.currentTTSLanguage.displayLanguage}\n" +
+                        "Switch STT language to ${_state.value.currentSTTLanguage.displayLanguage}")
             }
             RobotBodyPart.RIGHT_FACE -> {
                 when (inputMode) {
                     is RobotInputMode.Start -> {
                         _state.value = _state.value.copy(
+                            inputMode = RobotInputMode.AutoSTT,
                             ttsOn = true,
                             displayOn = true
                         )
@@ -228,9 +263,11 @@ class RobotViewModel @Inject constructor(
             }
             getFullTopic(Mqtt.Topic.ASST_ID) -> {
                 _state.value = _state.value.copy(assistantId = message)
+                showToast("Set assistant ID: $message")
             }
             getFullTopic(Mqtt.Topic.API_KEY) -> {
                 _state.value = _state.value.copy(gptApiKey = message)
+                showToast("Set API key: $message")
             }
             else -> {}
         }
@@ -248,22 +285,11 @@ class RobotViewModel @Inject constructor(
         )
     }
 
-    private val _toastMessage = MutableStateFlow<String?>(null)
-    val toastMessage: StateFlow<String?> get() = _toastMessage
-
-    fun showDebugMessage(message: String) {
-        _toastMessage.value = message
-    }
-
-    // 清除訊息
-    fun clearToastMessage() {
-        _toastMessage.value = null
-    }
-
     private fun startTTS(text: String, @RawRes videoResId: Int) {
         _state.value = _state.value.copy(
             isSpeaking = true,
             lastSpokenText = text,
+            lastSpokenFaceResId = videoResId,
             faceResId = videoResId
         )
 
@@ -296,8 +322,7 @@ class RobotViewModel @Inject constructor(
         }
     }
 
-    override fun onCleared() {
-        super.onCleared()
+    private fun destroyTTS() {
         textToSpeechUseCase.cleanUp()
     }
 
@@ -335,10 +360,14 @@ class RobotViewModel @Inject constructor(
         viewModelScope.launch {
             val assistantId = _state.value.assistantId
             val gptApiKey = _state.value.gptApiKey
+
+            showToast("Retrieving assistant...")
             val assistant = languageModelUseCase.retrieveAssistant(
                 assistantId = assistantId,
                 gptApiKey = gptApiKey
             )
+
+            showToast("Creating new thread...")
             val toolResources = assistant.tool_resources
             val threadId = languageModelUseCase.generateThreadId(
                 toolResources = toolResources,
@@ -359,6 +388,7 @@ class RobotViewModel @Inject constructor(
         val assistantId = _state.value.assistantId
         val gptApiKey = _state.value.gptApiKey
         viewModelScope.launch {
+            showToast("Message sent. Waiting for response...")
             languageModelUseCase.sendMessage(
                 threadId = threadId,
                 role = "user",

@@ -1,6 +1,7 @@
 package com.example.digitalrobot.presentation.robot.component
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.annotation.RawRes
 import androidx.compose.animation.Crossfade
@@ -55,20 +56,24 @@ fun VideoPlayer(
         val videoUri = Uri.parse("android.resource://${context.packageName}/$videoResId")
         val mediaItem = MediaItem.fromUri(videoUri)
 
-        if (currentPlayerIndex == 0) {
-            exoPlayer1.stop()
-            exoPlayer2.apply {
-                setMediaItem(mediaItem)
-                prepare()
-                play()
+        try {
+            if (currentPlayerIndex == 0) {
+                exoPlayer1.stop()
+                exoPlayer2.apply {
+                    setMediaItem(mediaItem)
+                    prepare()
+                    play()
+                }
+            } else {
+                exoPlayer2.stop()
+                exoPlayer1.apply {
+                    setMediaItem(mediaItem)
+                    prepare()
+                    play()
+                }
             }
-        } else {
-            exoPlayer2.stop()
-            exoPlayer1.apply {
-                setMediaItem(mediaItem)
-                prepare()
-                play()
-            }
+        } catch (e: Exception) {
+            Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
         }
         currentPlayerIndex = (currentPlayerIndex + 1) % 2
     }

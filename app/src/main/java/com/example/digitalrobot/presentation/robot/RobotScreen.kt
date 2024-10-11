@@ -1,7 +1,9 @@
 package com.example.digitalrobot.presentation.robot
 
 import android.Manifest
+import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,12 +16,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.digitalrobot.presentation.robot.component.VideoPlayer
+import com.example.digitalrobot.util.ToastManager
 
 @Composable
 fun RobotScreen(
     state: RobotState,
-    onEvent: (RobotEvent) -> Unit,
-    viewModel: RobotViewModel = hiltViewModel(),
+    onEvent: (RobotEvent) -> Unit
 ) {
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(
@@ -27,15 +29,14 @@ fun RobotScreen(
         onResult = {}
     )
 
-//    val toastMessage by viewModel.toastMessage.collectAsState()
-//
-//    // 如果有訊息就顯示 Toast
-//    LaunchedEffect(toastMessage) {
-//        toastMessage?.let {
-//            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
-//            viewModel.clearToastMessage()  // 顯示完畢後清除訊息
-//        }
-//    }
+    state.toastMsgs.let {
+        if (it.isNotEmpty()) {
+            for (msg in it){
+                ToastManager.showToast(context, msg)
+            }
+            onEvent(RobotEvent.ClearToastMsg)
+        }
+    }
 
     LaunchedEffect(Unit) {
         launcher.launch(Manifest.permission.RECORD_AUDIO)
@@ -46,6 +47,7 @@ fun RobotScreen(
     DisposableEffect(Unit) {
         onDispose {
             onEvent(RobotEvent.DisconnectMqttBroker)
+            onEvent(RobotEvent.DestroyTTS)
         }
     }
 
