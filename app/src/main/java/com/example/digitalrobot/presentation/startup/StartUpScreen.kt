@@ -30,8 +30,8 @@ fun StartUpScreen(
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
+        onEvent(StartUpEvent.InitRobotList)
         onEvent(StartUpEvent.InitSharedPreferences(context))
-        onEvent(StartUpEvent.SetAssistantList(state.gptApiKey))
     }
 
     Column(
@@ -39,55 +39,15 @@ fun StartUpScreen(
             .padding(MediumPadding)
             .fillMaxSize()
     ) {
-        TextField(
-            value = state.macAddress,
-            onValueChange = { onEvent(StartUpEvent.SetMacAddress(it)) },
-            placeholder = {
-                Text(text = "Please enter MAC address or scan QR code ...")
-            },
-            singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(SmallPadding)
-        )
 
         DropdownMenu(
-            label = "Project",
-            text = state.projectName,
-            options = state.projectOptions.keys.toList(),
+            label = "Robot",
+            text = state.robotName,
+            options = state.robotOptions.keys.toList(),
             onSelected = {
-                onEvent(StartUpEvent.SetProject(projectName = it))
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(SmallPadding)
+                onEvent(StartUpEvent.SetRobotInfo(robotName = it))
+            }
         )
-
-        DropdownMenu(
-            label = "Assistant",
-            text = state.assistantName,
-            options = state.assistantOptions.keys.toList(),
-            onSelected = {
-                onEvent(StartUpEvent.SetAssistant(assistantName = it))
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(SmallPadding)
-        )
-
-        Button(
-            onClick = { navigateToScanner() },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ),
-            shape = MaterialTheme.shapes.large,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(SmallPadding)
-        ) {
-            Text(text = "Scan QR Code")
-        }
 
         Button(onClick = { navigateToRobot(state) },
             colors = ButtonDefaults.buttonColors(

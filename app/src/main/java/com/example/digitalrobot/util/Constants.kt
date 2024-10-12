@@ -87,4 +87,10 @@ object Constants {
         )
     }
 
+    object Rcsl {
+
+        const val BASE_URL = "http://api.rcsl.online:8887/"
+
+    }
+
 }

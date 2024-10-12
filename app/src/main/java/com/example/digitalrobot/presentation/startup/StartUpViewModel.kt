@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.digitalrobot.domain.usecase.LanguageModelUseCase
+import com.example.digitalrobot.domain.usecase.RcslUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,7 +15,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class StartUpViewModel @Inject constructor(
-    private val languageModelUseCase: LanguageModelUseCase
+    private val rcslUseCase: RcslUseCase
 ): ViewModel() {
 
     private val _state = MutableStateFlow(StartUpState())
@@ -24,80 +25,49 @@ class StartUpViewModel @Inject constructor(
 
     fun onEvent(event: StartUpEvent) {
         when(event) {
-            is StartUpEvent.SetMacAddress -> {
-                setMacAddress(event.result)
+            is StartUpEvent.InitRobotList -> {
+                initRobotList()
             }
             is StartUpEvent.InitSharedPreferences -> {
                 initSharedPreferences(event.context)
             }
-            is StartUpEvent.SetProject -> {
-                setProject(event.projectName)
-            }
-            is StartUpEvent.SetAssistant -> {
-                setAssistant(event.assistantName)
-            }
-            is StartUpEvent.SetAssistantList -> {
-                setAssistantList(
-                    gptApiKey = event.gptApiKey,
-                    firstAsDefault = false
-                )
+            is StartUpEvent.SetRobotInfo -> {
+                setRobotInfo(event.robotName)
             }
         }
     }
 
-    private fun setMacAddress(macAddress: String) {
-        _state.value = _state.value.copy(macAddress = macAddress)
-        saveMacAddress(macAddress)
-    }
-
-    private fun setProject(projectName: String) {
-        val gptApiKey = _state.value.projectOptions[projectName] ?: ""
-        _state.value = _state.value.copy(
-            projectName = projectName,
-            gptApiKey = gptApiKey
-        )
-        setAssistantList(gptApiKey)
-    }
-
-    private fun setAssistantList(gptApiKey: String, firstAsDefault: Boolean = true) {
+    private fun initRobotList() {
         viewModelScope.launch {
-            val assistants = languageModelUseCase.getAssistantList(gptApiKey = gptApiKey)
-            val updatedState = _state.value.copy(
-                assistantOptions = assistants.associate { (it.name ?: "Unknown assistant") to it.id }
+            val robots = rcslUseCase.getRobotList().associate { it.robot_name to it.serial_number }
+            _state.value = _state.value.copy(
+                macAddress = robots[_state.value.robotName] ?: "",
+                robotOptions = robots
             )
-            _state.value = if (firstAsDefault) {
-                val firstAssistant = assistants.firstOrNull()
-                updatedState.copy(
-                    assistantName = firstAssistant?.name ?: "",
-                    assistantId = firstAssistant?.id ?: ""
-                )
-            } else {
-                updatedState
-            }
         }
-    }
-
-    private fun setAssistant(assistantName: String) {
-        val assistantId = _state.value.assistantOptions[assistantName] ?: ""
-        _state.value = _state.value.copy(
-            assistantName = assistantName,
-            assistantId = assistantId
-        )
     }
 
     private fun initSharedPreferences(context: Context) {
-        sharedPreferences = context.getSharedPreferences("macAddress", Context.MODE_PRIVATE)
-        loadMacAddress()
+        sharedPreferences = context.getSharedPreferences("robotName", Context.MODE_PRIVATE)
+        loadRobotName()
     }
 
-    private fun loadMacAddress() {
+    private fun setRobotInfo(robotName: String) {
         _state.value = _state.value.copy(
-            macAddress = sharedPreferences.getString("macAddress", "") ?: ""
+            robotName = robotName,
+            macAddress = _state.value.robotOptions[robotName] ?: ""
+        )
+        saveRobotName(robotName)
+    }
+
+    private fun loadRobotName() {
+        _state.value = _state.value.copy(
+            robotName = sharedPreferences.getString("robotName", "") ?: ""
         )
     }
 
-    private fun saveMacAddress(text: String) {
-        sharedPreferences.edit().putString("macAddress", text).apply()
+    private fun saveRobotName(name: String) {
+        sharedPreferences.edit().putString("robotName", name).apply()
     }
 
 }

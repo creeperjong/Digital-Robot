@@ -49,12 +49,9 @@ class RobotViewModel @Inject constructor(
         _state.value = _state.value.copy(toastMessages = emptyList())
     }
 
-    fun setConnectInfos(deviceId: String, gptApiKey: String, assistantId: String, assistantName: String) {
+    fun setConnectInfos(deviceId: String) {
         _state.value = _state.value.copy(
-            deviceId = deviceId,
-            gptApiKey = gptApiKey,
-            assistantId = assistantId,
-            assistantName = assistantName
+            deviceId = deviceId
         )
     }
 
@@ -410,7 +407,10 @@ class RobotViewModel @Inject constructor(
                 gptApiKey = gptApiKey
             )
 
-            _state.value = _state.value.copy(threadId = threadId)
+            _state.value = _state.value.copy(
+                assistantName = assistant.name ?: "",
+                threadId = threadId
+            )
 
             sendPromptAndHandleResponse(prompt = "Start")
         }

@@ -21,16 +21,16 @@ data class RobotState(
     val isSpeaking: Boolean = false,
     val lastSpokenText: String = "",
     @RawRes val lastSpokenFaceResId: Int = R.raw.normal,
-    val currentTTSLanguage: Locale = Locale.CHINESE,
+    val currentTTSLanguage: Locale = Locale.US,
 
     // STT
     val isListening: Boolean = false,
-    val currentSTTLanguage: Locale = Locale.CHINESE,
+    val currentSTTLanguage: Locale = Locale.US,
     val resultBuffer: String = "",
 
     // LLM
-    val gptApiKey: String = "",
-    val assistantId: String = "",
+    val gptApiKey: String = BuildConfig.MAKING_PROMPTS_INVISIBLE,
+    val assistantId: String = BuildConfig.DEFAULT_MPI_ASSISTANT_ID,
     val assistantName: String = "",
     val threadId: String = ""
 )

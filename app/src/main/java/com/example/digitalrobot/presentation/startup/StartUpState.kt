@@ -7,11 +7,7 @@ import kotlinx.parcelize.Parcelize
 
 @Parcelize
 data class StartUpState(
+    val robotName: String = "",
     val macAddress: String = "",
-    val projectName: String = "Making prompts invisible",
-    val gptApiKey: String = BuildConfig.MAKING_PROMPTS_INVISIBLE,
-    val assistantName: String = "AI家教老師 - 學習任何主題 (中文指令) [Default]",
-    val assistantId: String = BuildConfig.DEFAULT_MPI_ASSISTANT_ID,
-    val projectOptions: Map<String, String> = Constants.LanguageModel.PROJECTS,
-    val assistantOptions: Map<String, String> = emptyMap()
+    val robotOptions: Map<String, String> = emptyMap()
 ): Parcelable

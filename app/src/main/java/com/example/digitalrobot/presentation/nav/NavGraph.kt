@@ -54,10 +54,7 @@ fun NavGraph() {
                 ?.get<StartUpState>("connectInfo")
                 .let { connectInfo ->
                     robotViewModel.setConnectInfos(
-                        deviceId = connectInfo?.macAddress ?: "",
-                        gptApiKey = connectInfo?.gptApiKey ?: BuildConfig.MAKING_PROMPTS_INVISIBLE,
-                        assistantId = connectInfo?.assistantId ?: BuildConfig.DEFAULT_MPI_ASSISTANT_ID,
-                        assistantName = connectInfo?.assistantName ?: ""
+                        deviceId = connectInfo?.macAddress ?: ""
                     )
                 }
 
