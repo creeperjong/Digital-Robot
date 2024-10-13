@@ -55,7 +55,7 @@ fun StartUpScreen(
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ),
             shape = MaterialTheme.shapes.large,
-            enabled = state.macAddress.isNotBlank(),
+            enabled = state.deviceId.isNotBlank(),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(SmallPadding)

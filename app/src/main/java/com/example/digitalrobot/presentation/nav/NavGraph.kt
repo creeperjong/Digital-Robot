@@ -12,6 +12,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.digitalrobot.BuildConfig
+import com.example.digitalrobot.presentation.robot.RobotEvent
 import com.example.digitalrobot.presentation.robot.RobotScreen
 import com.example.digitalrobot.presentation.robot.RobotViewModel
 import com.example.digitalrobot.presentation.startup.QrCodeScannerScreen
@@ -53,8 +54,8 @@ fun NavGraph() {
                 ?.savedStateHandle
                 ?.get<StartUpState>("connectInfo")
                 .let { connectInfo ->
-                    robotViewModel.setConnectInfos(
-                        deviceId = connectInfo?.macAddress ?: ""
+                    robotViewModel.onEvent(
+                        RobotEvent.SetConnectInfos(deviceId = connectInfo?.deviceId ?: "")
                     )
                 }
 

@@ -6,5 +6,5 @@ sealed class Route(
 ) {
     data object StartUpScreen: Route(route = "StartUpScreen")
     data object QrCodeScannerScreen: Route(route = "QrCodeScannerScreen")
-    data object RobotScreen: Route(route = "RobotScreen", argName = "macAddress")
+    data object RobotScreen: Route(route = "RobotScreen")
 }

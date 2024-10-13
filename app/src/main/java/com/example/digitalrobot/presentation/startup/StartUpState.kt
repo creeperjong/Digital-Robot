@@ -8,6 +8,6 @@ import kotlinx.parcelize.Parcelize
 @Parcelize
 data class StartUpState(
     val robotName: String = "",
-    val macAddress: String = "",
+    val deviceId: String = "",
     val robotOptions: Map<String, String> = emptyMap()
 ): Parcelable

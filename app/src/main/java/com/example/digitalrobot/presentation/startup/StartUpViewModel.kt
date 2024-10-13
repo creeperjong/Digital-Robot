@@ -41,7 +41,7 @@ class StartUpViewModel @Inject constructor(
         viewModelScope.launch {
             val robots = rcslUseCase.getRobotList().associate { it.robot_name to it.serial_number }
             _state.value = _state.value.copy(
-                macAddress = robots[_state.value.robotName] ?: "",
+                deviceId = robots[_state.value.robotName] ?: "",
                 robotOptions = robots
             )
         }
@@ -55,7 +55,7 @@ class StartUpViewModel @Inject constructor(
     private fun setRobotInfo(robotName: String) {
         _state.value = _state.value.copy(
             robotName = robotName,
-            macAddress = _state.value.robotOptions[robotName] ?: ""
+            deviceId = _state.value.robotOptions[robotName] ?: ""
         )
         saveRobotName(robotName)
     }

@@ -7,7 +7,9 @@ import java.util.Locale
 
 data class RobotState(
 
+    // UI
     val toastMessages: List<String> = emptyList(),
+    val displayTouchArea: Boolean = false,
 
     // R&T
     val username: String = "Leaner",

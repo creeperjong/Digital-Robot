@@ -8,6 +8,12 @@ sealed class RobotEvent {
 
     data object ClearToastMsg: RobotEvent()
 
+    data class SetConnectInfos(val deviceId: String): RobotEvent()
+
+    data class TapBodyPart(val bodyPart: RobotBodyPart): RobotEvent()
+
+    data object ToggleTouchAreaDisplay: RobotEvent()
+
     data object ConnectMqttBroker: RobotEvent()
 
     data object DisconnectMqttBroker: RobotEvent()

@@ -39,17 +39,7 @@ class RobotViewModel @Inject constructor(
     private val _state = MutableStateFlow(RobotState())
     val state: StateFlow<RobotState> = _state.asStateFlow()
 
-    private fun showToast(message: String) {
-        val currentMessages = _state.value.toastMessages.toMutableList()
-        currentMessages.add(message)
-        _state.value = _state.value.copy(toastMessages = currentMessages)
-    }
-
-    private fun clearToast() {
-        _state.value = _state.value.copy(toastMessages = emptyList())
-    }
-
-    fun setConnectInfos(deviceId: String) {
+    private fun setConnectInfos(deviceId: String) {
         _state.value = _state.value.copy(
             deviceId = deviceId
         )
@@ -59,6 +49,9 @@ class RobotViewModel @Inject constructor(
         when (event) {
             is RobotEvent.ClearToastMsg -> {
                 clearToast()
+            }
+            is RobotEvent.SetConnectInfos -> {
+                setConnectInfos(event.deviceId)
             }
             is RobotEvent.ConnectMqttBroker -> {
                 connectMqtt()
@@ -87,7 +80,33 @@ class RobotViewModel @Inject constructor(
             is RobotEvent.InitAssistant -> {
                 startAssistant()
             }
+            is RobotEvent.TapBodyPart -> {
+                onTap(bodyPart = event.bodyPart)
+            }
+            is RobotEvent.ToggleTouchAreaDisplay -> {
+                toggleTouchAreaDisplay()
+            }
         }
+    }
+
+    /*
+     *  UI related functions
+     */
+
+    private fun showToast(message: String) {
+        val currentMessages = _state.value.toastMessages.toMutableList()
+        currentMessages.add(message)
+        _state.value = _state.value.copy(toastMessages = currentMessages)
+    }
+
+    private fun clearToast() {
+        _state.value = _state.value.copy(toastMessages = emptyList())
+    }
+
+    private fun toggleTouchAreaDisplay() {
+        _state.value = _state.value.copy(
+            displayTouchArea = !_state.value.displayTouchArea
+        )
     }
 
     /*
