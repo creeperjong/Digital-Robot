@@ -310,6 +310,18 @@ class RobotViewModel @Inject constructor(
                 _state.value = _state.value.copy(gptApiKey = message)
                 showToast("Set API key: $message")
             }
+            getFullTopic(Mqtt.Topic.TEXT_INPUT) -> {
+                stopSTT()
+                sendPromptAndHandleResponse(message)
+            }
+            getFullTopic(Mqtt.Topic.SEND_IMAGE) -> {
+                stopSTT()
+                val request = listOf(mapOf(
+                    "type" to "image_file",
+                    "image_file" to mapOf("file_id" to message)
+                ))
+                sendPromptAndHandleResponse(request.toString())
+            }
             else -> {}
         }
     }
