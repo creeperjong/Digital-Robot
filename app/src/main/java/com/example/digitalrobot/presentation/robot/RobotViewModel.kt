@@ -39,12 +39,6 @@ class RobotViewModel @Inject constructor(
     private val _state = MutableStateFlow(RobotState())
     val state: StateFlow<RobotState> = _state.asStateFlow()
 
-    private fun setConnectInfos(deviceId: String) {
-        _state.value = _state.value.copy(
-            deviceId = deviceId
-        )
-    }
-
     fun onEvent(event: RobotEvent) {
         when (event) {
             is RobotEvent.ClearToastMsg -> {
@@ -89,6 +83,32 @@ class RobotViewModel @Inject constructor(
         }
     }
 
+    private fun setConnectInfos(deviceId: String) {
+        _state.value = _state.value.copy(
+            deviceId = deviceId
+        )
+    }
+
+    private fun resetAllTempStates() {
+        stopTTS()
+        stopSTT()
+        _state.value = _state.value.copy(
+            toastMessages = emptyList(),
+            displayTouchArea = false,
+            faceResId = R.raw.smile,
+            inputMode = RobotInputMode.Start,
+            ttsOn = true,
+            displayOn = true,
+            isSpeaking = false,
+            lastSpokenText = "",
+            lastSpokenFaceResId = R.raw.normal,
+            currentTTSLanguage = Locale.US,
+            isListening = false,
+            currentSTTLanguage = Locale.US,
+            resultBuffer = "",
+        )
+    }
+
     /*
      *  UI related functions
      */
@@ -119,7 +139,6 @@ class RobotViewModel @Inject constructor(
         // Global handler
         when (inputMode) {
             is RobotInputMode.TouchSensor -> {
-                stopSTT()
                 if (bodyPart in inputMode.targetBodyParts) {
                     _state.value = _state.value.copy(inputMode = RobotInputMode.AutoSTT)
                     sendPromptAndHandleResponse(bodyPart.touchedTag)
@@ -193,6 +212,7 @@ class RobotViewModel @Inject constructor(
         when (inputMode) {
             is RobotInputMode.ScanObject -> {
                 sendPromptAndHandleResponse(uid)
+                sendInputResponseToTablet(uid)
             }
             else -> {}
         }
@@ -206,7 +226,7 @@ class RobotViewModel @Inject constructor(
         )
     }
 
-    private fun sendSTTResultToTablet(result: String) {
+    private fun sendInputResponseToTablet(result: String) {
         mqttUseCase.publish(
             topic = getFullTopic(topic = Mqtt.Topic.STT),
             message = "${_state.value.username}: $result",
@@ -313,6 +333,7 @@ class RobotViewModel @Inject constructor(
             getFullTopic(Mqtt.Topic.TEXT_INPUT) -> {
                 stopSTT()
                 sendPromptAndHandleResponse(message)
+                sendInputResponseToTablet(message)
             }
             getFullTopic(Mqtt.Topic.SEND_IMAGE) -> {
                 stopSTT()
@@ -321,6 +342,11 @@ class RobotViewModel @Inject constructor(
                     "image_file" to mapOf("file_id" to message)
                 ))
                 sendPromptAndHandleResponse(request.toString())
+            }
+            getFullTopic(Mqtt.Topic.RESPONSE) -> {
+                if (message == "[END]" || message == "[FINISH]") {
+                    resetAllTempStates()
+                }
             }
             else -> {}
         }
@@ -407,7 +433,7 @@ class RobotViewModel @Inject constructor(
 
     private fun onSTTDone(result: String) {
         _state.value = _state.value.copy(isListening = false)
-        sendSTTResultToTablet(result)
+        sendInputResponseToTablet(result)
         sendPromptAndHandleResponse(result)
     }
 
@@ -500,12 +526,11 @@ class RobotViewModel @Inject constructor(
 
         // Handle tags in response
         val tags = extractTagsFromText(rawText)
-        val text = removeTagsFromText(rawText)
         var expression = R.raw.normal
         for ((i, tag) in tags.withIndex()) {
             when (tag) {
                 "FINISH" -> {
-                    _state.value = _state.value.copy(inputMode = RobotInputMode.Start)
+                    resetAllTempStates()
                     break
                 }
                 "MANUAL STT" -> {
@@ -517,7 +542,7 @@ class RobotViewModel @Inject constructor(
                 "INPUT SENSOR" -> {
                     val targetBodyParts = mutableListOf<RobotBodyPart>()
                     for (j in i + 1 until tags.size) {
-                        val bodyPart = RobotBodyPart.fromTouchedTag(touchedTag = tags[i])
+                        val bodyPart = RobotBodyPart.fromTouchedTag(touchedTag = tags[j])
                         if (bodyPart != null) {
                             targetBodyParts.add(bodyPart)
                         }
@@ -549,7 +574,7 @@ class RobotViewModel @Inject constructor(
         }
         // TODO: Handle motion tag
         val ttsText = if (_state.value.ttsOn) {
-            sanitizeTextForTTS(text)
+            sanitizeTextForTTS(rawText)
         } else {
              when (_state.value.currentTTSLanguage) {
                  Locale.US -> "The result has shown on the tablet."
@@ -557,9 +582,11 @@ class RobotViewModel @Inject constructor(
                  else -> ""
             }
         }
+        val captionText = sanitizeTextForCaption(rawText)
+
         sendImageIdsToTablet(imageIds)
         sendArgvToTablet(if (_state.value.displayOn) "DISPLAY ON" else "DISPLAY OFF")
-        sendCaptionToTablet(text)
+        sendCaptionToTablet(captionText)
         startTTS(text = ttsText, videoResId = expression)
 
     }
@@ -594,18 +621,26 @@ class RobotViewModel @Inject constructor(
         return regex.findAll(input).map { it.groupValues[1] }.toList()
     }
 
-    private fun removeTagsFromText(input: String): String {
-        val regex = "\\[.*?]".toRegex()
-        return input.replace(regex, "")
-    }
-
     private fun sanitizeTextForTTS(text: String): String {
         var sanitizedText = text.replace("&", "and")
         val unwantedSymbolsRegex = Regex("[_*#]")
-        val markdownImageRegex = Regex("!\\[.*?]\\(.*?\\)")
+        val markdownImageRegex = Regex("!?\\[.*?]\\(.*?\\)")
+        val tagRegex = "\\[.*?]".toRegex()
 
         sanitizedText = sanitizedText.replace(unwantedSymbolsRegex, "")
         sanitizedText = sanitizedText.replace(markdownImageRegex, "")
+        sanitizedText = sanitizedText.replace(tagRegex, "")
+
+        return sanitizedText
+    }
+
+    private fun sanitizeTextForCaption(text: String): String {
+        var sanitizedText = text.replace("&", "and")
+        val markdownImageRegex = Regex("!?\\[.*?]\\(.*?\\)")
+        val tagRegex = "\\[.*?]".toRegex()
+
+        sanitizedText = sanitizedText.replace(markdownImageRegex, "")
+        sanitizedText = sanitizedText.replace(tagRegex, "")
 
         return sanitizedText
     }

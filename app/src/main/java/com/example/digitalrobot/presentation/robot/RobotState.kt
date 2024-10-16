@@ -12,7 +12,7 @@ data class RobotState(
     val displayTouchArea: Boolean = false,
 
     // R&T
-    val username: String = "Leaner",
+    val username: String = "Learner",
     val deviceId: String = "",
     @RawRes val faceResId: Int = R.raw.smile,
     val inputMode: RobotInputMode = RobotInputMode.Start,

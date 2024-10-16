@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
 
         Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
             runOnUiThread {
-                showExceptionDialog(throwable.message ?: "Unknown error")
+                showExceptionDialog((throwable.stackTrace ?: "Unknown error").toString())
             }
         }
 

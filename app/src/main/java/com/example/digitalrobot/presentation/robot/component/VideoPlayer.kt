@@ -1,5 +1,6 @@
 package com.example.digitalrobot.presentation.robot.component
 
+import android.graphics.Color
 import android.net.Uri
 import android.widget.Toast
 import androidx.annotation.OptIn
@@ -104,6 +105,7 @@ fun VideoPlayer(
                         player = exoPlayer1
                         useController = false
                         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
+                        setShutterBackgroundColor(Color.TRANSPARENT)
                     }
                 },
                 modifier = modifier
@@ -115,6 +117,7 @@ fun VideoPlayer(
                         player = exoPlayer2
                         useController = false
                         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
+                        setShutterBackgroundColor(Color.TRANSPARENT)
                     }
                 },
                 modifier = modifier
