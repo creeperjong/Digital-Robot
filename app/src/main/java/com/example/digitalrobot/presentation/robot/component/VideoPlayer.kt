@@ -19,9 +19,12 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -57,19 +60,35 @@ fun VideoPlayer(
         val mediaItem = MediaItem.fromUri(videoUri)
 
         try {
-            if (currentPlayerIndex == 0) {
-                exoPlayer1.stop()
-                exoPlayer2.apply {
-                    setMediaItem(mediaItem)
-                    prepare()
-                    play()
-                }
-            } else {
-                exoPlayer2.stop()
-                exoPlayer1.apply {
-                    setMediaItem(mediaItem)
-                    prepare()
-                    play()
+            withContext(Dispatchers.Main) {
+                if (currentPlayerIndex == 0) {
+                    exoPlayer1.stop()
+                    exoPlayer2.apply {
+                        setMediaItem(mediaItem)
+                        prepare()
+                        addListener(object : Player.Listener {
+                            @Deprecated("Deprecated in Java")
+                            override fun onPlayerStateChanged(playWhenReady: Boolean, playbackState: Int) {
+                                if (playbackState == Player.STATE_READY) {
+                                    play()
+                                }
+                            }
+                        })
+                    }
+                } else {
+                    exoPlayer2.stop()
+                    exoPlayer1.apply {
+                        setMediaItem(mediaItem)
+                        prepare()
+                        addListener(object : Player.Listener {
+                            @Deprecated("Deprecated in Java")
+                            override fun onPlayerStateChanged(playWhenReady: Boolean, playbackState: Int) {
+                                if (playbackState == Player.STATE_READY) {
+                                    play()
+                                }
+                            }
+                        })
+                    }
                 }
             }
         } catch (e: Exception) {

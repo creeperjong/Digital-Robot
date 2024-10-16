@@ -1,5 +1,6 @@
 package com.example.digitalrobot
 
+import android.app.AlertDialog
 import android.content.pm.ActivityInfo
 import android.os.Build
 import android.os.Bundle
@@ -37,6 +38,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         hideSystemUi(window)
+
+        Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
+            runOnUiThread {
+                showExceptionDialog(throwable.message ?: "Unknown error")
+            }
+        }
+
         setContent {
             DigitalRobotTheme {
                 Box(modifier = Modifier.background(color = MaterialTheme.colorScheme.background)){
@@ -45,7 +53,16 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    private fun showExceptionDialog(errorMessage: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Unexpected Error")
+            .setMessage("Please report below message to coder\n$errorMessage")
+            .setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
+            .setCancelable(false)
+            .show()
+    }
 }
+
 
 private fun hideSystemUi(window: Window) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

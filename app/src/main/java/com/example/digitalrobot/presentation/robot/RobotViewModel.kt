@@ -114,12 +114,12 @@ class RobotViewModel @Inject constructor(
      */
 
     private fun onTap(bodyPart: RobotBodyPart) {
-        // TODO: isListening & isSpeaking mode management
         // TODO: Handle multitap when input mode is TouchSensor
         val inputMode = _state.value.inputMode
         // Global handler
         when (inputMode) {
             is RobotInputMode.TouchSensor -> {
+                stopSTT()
                 if (bodyPart in inputMode.targetBodyParts) {
                     _state.value = _state.value.copy(inputMode = RobotInputMode.AutoSTT)
                     sendPromptAndHandleResponse(bodyPart.touchedTag)
@@ -548,13 +548,6 @@ class RobotViewModel @Inject constructor(
             }
         }
         // TODO: Handle motion tag
-        // TODO: STT subtitle
-
-        // TODO: Test display off function
-        // TODO: Test manual stt
-        // TODO: Test sending images
-        // TODO: Test asstid apikey sent from tablet
-        // TODO: Test scan qrcode
         val ttsText = if (_state.value.ttsOn) {
             sanitizeTextForTTS(text)
         } else {
