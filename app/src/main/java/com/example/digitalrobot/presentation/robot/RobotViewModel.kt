@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Locale
 import javax.inject.Inject
+import kotlin.reflect.jvm.internal.impl.descriptors.Visibilities.Local
 
 @HiltViewModel
 class RobotViewModel @Inject constructor(
@@ -178,12 +179,14 @@ class RobotViewModel @Inject constructor(
             RobotBodyPart.LEFT_FACE -> {
                 when (_state.value.currentTTSLanguage) {
                     Locale.US -> { changeTTSLanguage(Locale.CHINESE) }
-                    Locale.CHINESE -> { changeTTSLanguage(Locale.US) }
+                    Locale.CHINESE -> { changeTTSLanguage(Locale("pl", "PL")) }
+                    Locale("pl", "PL") -> { changeTTSLanguage(Locale.US) }
                     else -> {}
                 }
                 when (_state.value.currentSTTLanguage) {
                     Locale.US -> { changeSTTLanguage(Locale.CHINESE) }
-                    Locale.CHINESE -> { changeSTTLanguage(Locale.US) }
+                    Locale.CHINESE -> { changeSTTLanguage(Locale("pl", "PL")) }
+                    Locale("pl", "PL") -> { changeTTSLanguage(Locale.US) }
                     else -> {}
                 }
                 showToast("Switch TTS language to ${_state.value.currentTTSLanguage.displayLanguage}\n" +
@@ -345,6 +348,7 @@ class RobotViewModel @Inject constructor(
             }
             getFullTopic(Mqtt.Topic.RESPONSE) -> {
                 if (message == "[END]" || message == "[FINISH]") {
+                    showToast("Finished!")
                     resetAllTempStates()
                 }
             }
@@ -566,6 +570,18 @@ class RobotViewModel @Inject constructor(
                 "DISPLAY OFF" -> {
                     _state.value = _state.value.copy(displayOn = false)
                 }
+                "LANGUAGE = ENGLISH" -> {
+                    changeTTSLanguage(Locale.US)
+                    changeSTTLanguage(Locale.US)
+                }
+                "LANGUAGE = CHINESE" -> {
+                    changeTTSLanguage(Locale.CHINESE)
+                    changeSTTLanguage(Locale.CHINESE)
+                }
+                "LANGUAGE = POLISH" -> {
+                    changeTTSLanguage(Locale("pl", "PL"))
+                    changeSTTLanguage(Locale("pl", "PL"))
+                }
                 in Robot.EXPRESSION -> {
                     expression = Robot.EXPRESSION[tag] ?: R.raw.normal
                 }
@@ -579,6 +595,7 @@ class RobotViewModel @Inject constructor(
              when (_state.value.currentTTSLanguage) {
                  Locale.US -> "The result has shown on the tablet."
                  Locale.CHINESE -> "結果顯示於平板"
+                 Locale("pl", "PL") -> "Wynik został wyświetlony na tablecie."
                  else -> ""
             }
         }
@@ -623,7 +640,7 @@ class RobotViewModel @Inject constructor(
 
     private fun sanitizeTextForTTS(text: String): String {
         var sanitizedText = text.replace("&", "and")
-        val unwantedSymbolsRegex = Regex("[_*#]")
+        val unwantedSymbolsRegex = Regex("[_*#-]")
         val markdownImageRegex = Regex("!?\\[.*?]\\(.*?\\)")
         val tagRegex = "\\[.*?]".toRegex()
 

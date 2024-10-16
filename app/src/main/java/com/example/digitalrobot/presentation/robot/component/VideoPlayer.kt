@@ -1,6 +1,5 @@
 package com.example.digitalrobot.presentation.robot.component
 
-import android.graphics.Color
 import android.net.Uri
 import android.widget.Toast
 import androidx.annotation.OptIn
@@ -34,22 +33,8 @@ fun VideoPlayer(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var currentPlayerIndex by remember {
-        mutableIntStateOf(0)
-    }
 
-    /*
-     * Use 2 player to avoid black frame
-     * when switching videos
-     */
-
-    val exoPlayer1 = remember {
-        ExoPlayer.Builder(context).build().apply {
-            repeatMode = Player.REPEAT_MODE_ALL
-            playWhenReady = true
-        }
-    }
-    val exoPlayer2 = remember {
+    val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
             repeatMode = Player.REPEAT_MODE_ALL
             playWhenReady = true
@@ -60,75 +45,35 @@ fun VideoPlayer(
         val videoUri = Uri.parse("android.resource://${context.packageName}/$videoResId")
         val mediaItem = MediaItem.fromUri(videoUri)
 
-        try {
-            withContext(Dispatchers.Main) {
-                if (currentPlayerIndex == 0) {
-                    exoPlayer1.stop()
-                    exoPlayer2.apply {
-                        setMediaItem(mediaItem)
-                        prepare()
-                        addListener(object : Player.Listener {
-                            @Deprecated("Deprecated in Java")
-                            override fun onPlayerStateChanged(playWhenReady: Boolean, playbackState: Int) {
-                                if (playbackState == Player.STATE_READY) {
-                                    play()
-                                }
-                            }
-                        })
-                    }
-                } else {
-                    exoPlayer2.stop()
-                    exoPlayer1.apply {
-                        setMediaItem(mediaItem)
-                        prepare()
-                        addListener(object : Player.Listener {
-                            @Deprecated("Deprecated in Java")
-                            override fun onPlayerStateChanged(playWhenReady: Boolean, playbackState: Int) {
-                                if (playbackState == Player.STATE_READY) {
-                                    play()
-                                }
-                            }
-                        })
+        exoPlayer.apply {
+            setMediaItem(mediaItem)
+            prepare()
+            addListener(object : Player.Listener {
+                @Deprecated("Deprecated in Java")
+                override fun onPlayerStateChanged(playWhenReady: Boolean, playbackState: Int) {
+                    if (playbackState == Player.STATE_READY) {
+                        play()
                     }
                 }
-            }
-        } catch (e: Exception) {
-            Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+            })
         }
-        currentPlayerIndex = (currentPlayerIndex + 1) % 2
-    }
-    Crossfade(targetState = currentPlayerIndex, label = "") { index ->
-        if (index == 0) {
-            AndroidView(
-                factory = { ctx ->
-                    PlayerView(ctx).apply {
-                        player = exoPlayer1
-                        useController = false
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
-                        setShutterBackgroundColor(Color.TRANSPARENT)
-                    }
-                },
-                modifier = modifier
-            )
-        } else {
-            AndroidView(
-                factory = { ctx ->
-                    PlayerView(ctx).apply {
-                        player = exoPlayer2
-                        useController = false
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
-                        setShutterBackgroundColor(Color.TRANSPARENT)
-                    }
-                },
-                modifier = modifier
-            )
-        }
+
     }
 
-    DisposableEffect(exoPlayer1, exoPlayer2) {
+    AndroidView(
+        factory = { ctx ->
+            PlayerView(ctx).apply {
+                player = exoPlayer
+                useController = false
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
+            }
+        },
+        modifier = modifier
+    )
+
+    DisposableEffect(exoPlayer) {
         onDispose {
-            exoPlayer1.release()
-            exoPlayer2.release()
+            exoPlayer.release()
         }
     }
 }
