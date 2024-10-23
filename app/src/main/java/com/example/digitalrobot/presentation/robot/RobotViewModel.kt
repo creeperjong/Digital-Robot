@@ -94,7 +94,6 @@ class RobotViewModel @Inject constructor(
         stopTTS()
         stopSTT()
         _state.value = _state.value.copy(
-            toastMessages = emptyList(),
             displayTouchArea = false,
             faceResId = R.raw.smile,
             inputMode = RobotInputMode.Start,
@@ -103,11 +102,11 @@ class RobotViewModel @Inject constructor(
             isSpeaking = false,
             lastSpokenText = "",
             lastSpokenFaceResId = R.raw.normal,
-            currentTTSLanguage = Locale.US,
             isListening = false,
-            currentSTTLanguage = Locale.US,
             resultBuffer = "",
         )
+        changeTTSLanguage(Locale.US)
+        changeSTTLanguage(Locale.US)
     }
 
     /*
@@ -186,7 +185,7 @@ class RobotViewModel @Inject constructor(
                 when (_state.value.currentSTTLanguage) {
                     Locale.US -> { changeSTTLanguage(Locale.CHINESE) }
                     Locale.CHINESE -> { changeSTTLanguage(Locale("pl", "PL")) }
-                    Locale("pl", "PL") -> { changeTTSLanguage(Locale.US) }
+                    Locale("pl", "PL") -> { changeSTTLanguage(Locale.US) }
                     else -> {}
                 }
                 showToast("Switch TTS language to ${_state.value.currentTTSLanguage.displayLanguage}\n" +
@@ -229,6 +228,9 @@ class RobotViewModel @Inject constructor(
         )
     }
 
+    private fun getNFCCategory() {
+    }
+
     private fun sendInputResponseToTablet(result: String) {
         mqttUseCase.publish(
             topic = getFullTopic(topic = Mqtt.Topic.STT),
@@ -265,6 +267,7 @@ class RobotViewModel @Inject constructor(
                 deviceId = _state.value.deviceId,
                 onConnected = {
                     initialSubscription()
+                    getNFCCategory()
                 },
                 onMessageArrived = { topic, message ->
                     onMqttMessageArrived(topic, message)
@@ -344,7 +347,30 @@ class RobotViewModel @Inject constructor(
                     "type" to "image_file",
                     "image_file" to mapOf("file_id" to message)
                 ))
-                sendPromptAndHandleResponse(request.toString())
+                sendPromptAndHandleResponse(request)
+            }
+            getFullTopic(Mqtt.Topic.SEND_FILE) -> {
+                stopSTT()
+                val fileId = getPropertyFromJsonString(
+                    json = message,
+                    propertyName = "fileid",
+                    expectedType = String::class
+                )
+                val filename = getPropertyFromJsonString(
+                    json = message,
+                    propertyName = "filename",
+                    expectedType = String::class
+                )
+                val attachment = listOf(
+                    Attachment(
+                        file_id = fileId,
+                        tools = listOf(mapOf("type" to "code_interpreter"))
+                    )
+                )
+                sendPromptAndHandleResponse(
+                    prompt = "Here is the uploaded file: $filename",
+                    attachment = attachment
+                )
             }
             getFullTopic(Mqtt.Topic.RESPONSE) -> {
                 if (message == "[END]" || message == "[FINISH]") {
@@ -477,7 +503,7 @@ class RobotViewModel @Inject constructor(
         }
     }
 
-    private fun sendPromptAndHandleResponse(prompt: String) {
+    private fun sendPromptAndHandleResponse(prompt: Any, attachment: List<Attachment>? = null) {
         val threadId = _state.value.threadId
         val assistantId = _state.value.assistantId
         val gptApiKey = _state.value.gptApiKey
@@ -487,7 +513,7 @@ class RobotViewModel @Inject constructor(
                 threadId = threadId,
                 role = "user",
                 content = prompt,
-                attachments = null,
+                attachments = attachment,
                 gptApiKey = gptApiKey
             )
 
@@ -634,7 +660,7 @@ class RobotViewModel @Inject constructor(
     }
 
     private fun extractTagsFromText(input: String): List<String> {
-        val regex = "\\[(.+?)]".toRegex()
+        val regex = "(?<!!)\\[(.+?)]".toRegex()
         return regex.findAll(input).map { it.groupValues[1] }.toList()
     }
 
@@ -652,12 +678,10 @@ class RobotViewModel @Inject constructor(
     }
 
     private fun sanitizeTextForCaption(text: String): String {
-        var sanitizedText = text.replace("&", "and")
-        val markdownImageRegex = Regex("!?\\[.*?]\\(.*?\\)")
-        val tagRegex = "\\[.*?]".toRegex()
+        var sanitizedText = text
+        val singleBracketTagRegex = Regex("(?<!!)\\[.*?]")
 
-        sanitizedText = sanitizedText.replace(markdownImageRegex, "")
-        sanitizedText = sanitizedText.replace(tagRegex, "")
+        sanitizedText = sanitizedText.replace(singleBracketTagRegex, "")
 
         return sanitizedText
     }

@@ -28,6 +28,7 @@ import com.example.digitalrobot.presentation.startup.QrCodeScannerScreen
 import com.example.digitalrobot.presentation.startup.StartUpScreen
 import com.example.digitalrobot.ui.theme.DigitalRobotTheme
 import dagger.hilt.android.AndroidEntryPoint
+import retrofit2.HttpException
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -41,7 +42,25 @@ class MainActivity : ComponentActivity() {
 
         Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
             runOnUiThread {
-                showExceptionDialog((throwable.stackTrace ?: "Unknown error").toString())
+
+                var errorMessage = throwable.message ?: "Unknown error"
+                val stackTrace = throwable.stackTrace.joinToString("\n")
+
+                if (throwable is HttpException) {
+                    val httpException = throwable
+                    val statusCode = httpException.code()
+                    val errorBody = httpException.response()?.errorBody()?.string()
+
+                    errorMessage = """
+                HTTP Exception occurred:
+                Status code: $statusCode
+                Error body: ${errorBody ?: "No additional information"}
+            """.trimIndent()
+                }
+
+                val detailedError = "$errorMessage\n\nStackTrace:\n$stackTrace"
+
+                showExceptionDialog(detailedError)
             }
         }
 
