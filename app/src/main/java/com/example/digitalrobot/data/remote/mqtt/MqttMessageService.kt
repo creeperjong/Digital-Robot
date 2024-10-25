@@ -55,11 +55,15 @@ class MqttMessageService : Service() {
 
             override fun connectionLost(cause: Throwable?) {
                 Log.d(logTag, "Connection Lost")
-                Toast.makeText(
-                    this@MqttMessageService,
-                    "MQTT connectionLost",
-                    Toast.LENGTH_SHORT
-                ).show()
+
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(
+                        this@MqttMessageService,
+                        "MQTT connectionLost",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                connect(host, deviceId, onConnected, onMessageArrived)
             }
 
             @Throws(Exception::class)

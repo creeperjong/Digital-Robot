@@ -6,4 +6,6 @@ interface IRcslRepository {
 
     suspend fun getRobotList(): List<Robot>
 
+    suspend fun getRobotCategory(robotSerialNumber: String): List<Any>
+
 }

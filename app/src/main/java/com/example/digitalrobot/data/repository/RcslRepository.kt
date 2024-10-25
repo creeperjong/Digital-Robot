@@ -17,4 +17,14 @@ class RcslRepository(
         }
     }
 
+    override suspend fun getRobotCategory(robotSerialNumber: String): List<Any> {
+        return try {
+            rcslApi.getRobotCategory(robotSerialNumber).data.user
+        } catch(e: Exception) {
+            e.printStackTrace()
+            throw e
+        }
+    }
+
+
 }

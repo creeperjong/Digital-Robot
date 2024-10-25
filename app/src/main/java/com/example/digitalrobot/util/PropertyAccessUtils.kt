@@ -53,11 +53,24 @@ fun <T : Any> getValueFromLinkedTreeMap(
     expectedType: KClass<T>
 ): T? {
     val value = map[key] ?: return null
-    return if (expectedType.isInstance(value)) {
-        @Suppress("UNCHECKED_CAST")
-        value as T
-    } else {
-        null
+    return when {
+        expectedType.isInstance(value) -> {
+            @Suppress("UNCHECKED_CAST")
+            value as T
+        }
+        value is List<*> && expectedType == List::class -> {
+            if (value.all { it is String }) {
+                @Suppress("UNCHECKED_CAST")
+                value as T
+            } else null
+        }
+        value is Map<*, *> && expectedType == Map::class -> {
+            if (value.keys.all { it is String } && value.values.all { it is String }) {
+                @Suppress("UNCHECKED_CAST")
+                value as T
+            } else null
+        }
+        else -> null
     }
 }
 

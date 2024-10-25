@@ -10,6 +10,7 @@ import com.example.digitalrobot.domain.model.llm.Message
 import com.example.digitalrobot.domain.model.llm.common.Attachment
 import com.example.digitalrobot.domain.usecase.LanguageModelUseCase
 import com.example.digitalrobot.domain.usecase.MqttUseCase
+import com.example.digitalrobot.domain.usecase.RcslUseCase
 import com.example.digitalrobot.domain.usecase.SpeechToTextUseCase
 import com.example.digitalrobot.domain.usecase.TextToSpeechUseCase
 import com.example.digitalrobot.util.Constants.Robot
@@ -27,14 +28,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Locale
 import javax.inject.Inject
-import kotlin.reflect.jvm.internal.impl.descriptors.Visibilities.Local
+import kotlin.Exception
 
 @HiltViewModel
 class RobotViewModel @Inject constructor(
     private val mqttUseCase: MqttUseCase,
     private val textToSpeechUseCase: TextToSpeechUseCase,
     private val speechToTextUseCase: SpeechToTextUseCase,
-    private val languageModelUseCase: LanguageModelUseCase
+    private val languageModelUseCase: LanguageModelUseCase,
+    private val rcslUseCase: RcslUseCase,
 ): ViewModel() {
 
     private val _state = MutableStateFlow(RobotState())
@@ -104,9 +106,8 @@ class RobotViewModel @Inject constructor(
             lastSpokenFaceResId = R.raw.normal,
             isListening = false,
             resultBuffer = "",
+            isRunCompleted = true,
         )
-        changeTTSLanguage(Locale.US)
-        changeSTTLanguage(Locale.US)
     }
 
     /*
@@ -140,7 +141,6 @@ class RobotViewModel @Inject constructor(
         when (inputMode) {
             is RobotInputMode.TouchSensor -> {
                 if (bodyPart in inputMode.targetBodyParts) {
-                    _state.value = _state.value.copy(inputMode = RobotInputMode.AutoSTT)
                     sendPromptAndHandleResponse(bodyPart.touchedTag)
                 }
             }
@@ -148,12 +148,14 @@ class RobotViewModel @Inject constructor(
         }
         when (bodyPart) {
             RobotBodyPart.HEAD -> {
-                stopTTS()
-                stopSTT()
-                startTTS(
-                    text = _state.value.lastSpokenText,
-                    videoResId = _state.value.lastSpokenFaceResId
-                )
+                if (_state.value.inputMode != RobotInputMode.Start){
+                    stopTTS()
+                    stopSTT()
+                    startTTS(
+                        text = _state.value.lastSpokenText,
+                        videoResId = _state.value.lastSpokenFaceResId
+                    )
+                }
             }
             RobotBodyPart.CHEST -> {
                 when (inputMode) {
@@ -208,8 +210,6 @@ class RobotViewModel @Inject constructor(
     }
 
     private fun onScan(uid: String) {
-        // TODO: Manage scan mode
-        // TODO: Scan NFC
         val inputMode = _state.value.inputMode
         when (inputMode) {
             is RobotInputMode.ScanObject -> {
@@ -220,6 +220,18 @@ class RobotViewModel @Inject constructor(
         }
     }
 
+    private fun onTabletResponse(message: String) {
+        val inputMode = _state.value.inputMode
+        when (inputMode) {
+            is RobotInputMode.TouchTablet -> {
+                sendPromptAndHandleResponse(message)
+                sendInputResponseToTablet(message)
+            }
+            else -> {}
+        }
+
+    }
+
     private fun sendCaptionToTablet(caption: String) {
         mqttUseCase.publish(
             topic = getFullTopic(topic = Mqtt.Topic.TTS),
@@ -228,7 +240,11 @@ class RobotViewModel @Inject constructor(
         )
     }
 
-    private fun getNFCCategory() {
+    private fun getNFCDefinitions() {
+        viewModelScope.launch {
+            val userCategories = rcslUseCase.getUserCategories(deviceId = _state.value.deviceId)
+            _state.value = _state.value.copy(nfcDefinitions = userCategories)
+        }
     }
 
     private fun sendInputResponseToTablet(result: String) {
@@ -267,7 +283,7 @@ class RobotViewModel @Inject constructor(
                 deviceId = _state.value.deviceId,
                 onConnected = {
                     initialSubscription()
-                    getNFCCategory()
+                    getNFCDefinitions()
                 },
                 onMessageArrived = { topic, message ->
                     onMqttMessageArrived(topic, message)
@@ -290,6 +306,7 @@ class RobotViewModel @Inject constructor(
             subscribe(getFullTopic(Mqtt.Topic.ASST_ID), 0)
             subscribe(getFullTopic(Mqtt.Topic.SEND_IMAGE), 0)
             subscribe(getFullTopic(Mqtt.Topic.SEND_FILE), 0)
+            subscribe(getFullTopic(Mqtt.Topic.TABLET_QR), 0)
             subscribe(getFullTopic(Mqtt.Topic.NFC_TAG), 0)
             subscribe(getFullTopic(Mqtt.Topic.TABLET), 0)
             subscribe(getFullTopic(Mqtt.Topic.ROBOT), 0)
@@ -338,8 +355,12 @@ class RobotViewModel @Inject constructor(
             }
             getFullTopic(Mqtt.Topic.TEXT_INPUT) -> {
                 stopSTT()
-                sendPromptAndHandleResponse(message)
-                sendInputResponseToTablet(message)
+                if (message.isEmpty()) {
+                    showToast("Warning: Response cannot be empty!")
+                } else {
+                    sendPromptAndHandleResponse(message)
+                    sendInputResponseToTablet(message)
+                }
             }
             getFullTopic(Mqtt.Topic.SEND_IMAGE) -> {
                 stopSTT()
@@ -372,10 +393,30 @@ class RobotViewModel @Inject constructor(
                     attachment = attachment
                 )
             }
+            getFullTopic(Mqtt.Topic.TABLET_QR) -> {
+                onScan(message)
+            }
+            getFullTopic(Mqtt.Topic.NFC_TAG) -> {
+                val username = getPropertyFromJsonString(
+                    json = message,
+                    propertyName = "USERNAME",
+                    expectedType = String::class
+                ) ?: "Unknown user"
+                val tag = getPropertyFromJsonString(
+                    json = message,
+                    propertyName = "UID",
+                    expectedType = String::class
+                ) ?: "Tag not found"
+                val definitions = _state.value.nfcDefinitions[username] ?: emptyList()
+                val content = definitions.find { it[tag] != null }?.get(tag)
+                onScan(content ?: "Content not found")
+            }
             getFullTopic(Mqtt.Topic.RESPONSE) -> {
                 if (message == "[END]" || message == "[FINISH]") {
                     showToast("Finished!")
                     resetAllTempStates()
+                } else {
+                    onTabletResponse(message)
                 }
             }
             else -> {}
@@ -503,43 +544,64 @@ class RobotViewModel @Inject constructor(
         }
     }
 
-    private fun sendPromptAndHandleResponse(prompt: Any, attachment: List<Attachment>? = null) {
+    private fun sendPromptAndHandleResponse(
+        prompt: Any,
+        attachment: List<Attachment>? = null,
+        retryCount: Int = 0,
+    ) {
+        val maxRetries = 3
         val threadId = _state.value.threadId
         val assistantId = _state.value.assistantId
         val gptApiKey = _state.value.gptApiKey
+        if (!_state.value.isRunCompleted) {
+            showToast("Warning: Please wait until Kebbi response")
+            return
+        }
+
         viewModelScope.launch {
-            showToast("Message sent. Waiting for response...")
-            languageModelUseCase.sendMessage(
-                threadId = threadId,
-                role = "user",
-                content = prompt,
-                attachments = attachment,
-                gptApiKey = gptApiKey
-            )
-
-            val runId = languageModelUseCase.generateAssistantRunId(
-                threadId = threadId,
-                assistantId = assistantId,
-                instructions = null,
-                gptApiKey = gptApiKey
-            )
-
-            var status: String
-            do {
-                status = languageModelUseCase.getRunStatus(
+            var response: Message? = null
+            try {
+                _state.value = _state.value.copy(isRunCompleted = false)
+                showToast("Message sent. Waiting for response...")
+                languageModelUseCase.sendMessage(
                     threadId = threadId,
-                    runId = runId,
+                    role = "user",
+                    content = if (prompt.toString().isEmpty()) "continue" else prompt,
+                    attachments = attachment,
                     gptApiKey = gptApiKey
                 )
-                if (status != "completed") {
-                    delay(1000)
-                }
-            } while (status != "completed")
 
-            val response = languageModelUseCase.getAssistantResponse(
-                threadId = threadId,
-                gptApiKey = gptApiKey
-            )
+                val runId = languageModelUseCase.generateAssistantRunId(
+                    threadId = threadId,
+                    assistantId = assistantId,
+                    instructions = null,
+                    gptApiKey = gptApiKey
+                )
+
+                var status: String
+                do {
+                    status = languageModelUseCase.getRunStatus(
+                        threadId = threadId,
+                        runId = runId,
+                        gptApiKey = gptApiKey
+                    )
+                    if (status != "completed") {
+                        delay(1000)
+                    }
+                } while (status != "completed")
+                _state.value = _state.value.copy(isRunCompleted = true)
+
+                response = languageModelUseCase.getAssistantResponse(
+                    threadId = threadId,
+                    gptApiKey = gptApiKey
+                )
+            } catch (e: Exception) {
+                if (retryCount < maxRetries) {
+                    sendPromptAndHandleResponse(prompt, attachment, retryCount + 1)
+                } else {
+                    throw e
+                }
+            }
             handleResponse(response)
         }
     }
@@ -583,6 +645,9 @@ class RobotViewModel @Inject constructor(
                 }
                 "INPUT SCAN" -> {
                     _state.value = _state.value.copy(inputMode = RobotInputMode.ScanObject)
+                }
+                "INPUT TOUCH" -> {
+                    _state.value = _state.value.copy(inputMode = RobotInputMode.TouchTablet)
                 }
                 "TTS ON" -> {
                     _state.value = _state.value.copy(ttsOn = true)

@@ -18,6 +18,7 @@ data class RobotState(
     val inputMode: RobotInputMode = RobotInputMode.Start,
     val ttsOn: Boolean = true,
     val displayOn: Boolean = true,
+    val nfcDefinitions: Map<String, List<Map<String, String>>> = emptyMap(),
 
     // TTS
     val isSpeaking: Boolean = false,
@@ -34,5 +35,6 @@ data class RobotState(
     val gptApiKey: String = BuildConfig.MAKING_PROMPTS_INVISIBLE,
     val assistantId: String = BuildConfig.DEFAULT_MPI_ASSISTANT_ID,
     val assistantName: String = "",
-    val threadId: String = ""
+    val threadId: String = "",
+    val isRunCompleted: Boolean = true
 )

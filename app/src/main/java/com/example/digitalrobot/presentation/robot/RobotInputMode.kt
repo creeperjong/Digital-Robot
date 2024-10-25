@@ -11,4 +11,6 @@ sealed class RobotInputMode {
     data object ScanObject: RobotInputMode()
 
     data class TouchSensor(val targetBodyParts: List<RobotBodyPart>): RobotInputMode()
+
+    data object TouchTablet: RobotInputMode()
 }

@@ -4,7 +4,6 @@ import android.app.AlertDialog
 import android.content.pm.ActivityInfo
 import android.os.Build
 import android.os.Bundle
-import android.speech.SpeechRecognizer
 import android.view.View
 import android.view.Window
 import android.view.WindowInsets
@@ -14,22 +13,15 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.view.WindowCompat
 import com.example.digitalrobot.presentation.nav.NavGraph
-import com.example.digitalrobot.presentation.startup.QrCodeScannerScreen
-import com.example.digitalrobot.presentation.startup.StartUpScreen
 import com.example.digitalrobot.ui.theme.DigitalRobotTheme
+import com.example.digitalrobot.util.Constants
 import dagger.hilt.android.AndroidEntryPoint
+import org.eclipse.paho.client.mqttv3.MqttException
 import retrofit2.HttpException
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -47,15 +39,20 @@ class MainActivity : ComponentActivity() {
                 val stackTrace = throwable.stackTrace.joinToString("\n")
 
                 if (throwable is HttpException) {
-                    val httpException = throwable
-                    val statusCode = httpException.code()
-                    val errorBody = httpException.response()?.errorBody()?.string()
+                    val statusCode = throwable.code()
+                    val errorBody = throwable.response()?.errorBody()?.string()
 
                     errorMessage = """
-                HTTP Exception occurred:
-                Status code: $statusCode
-                Error body: ${errorBody ?: "No additional information"}
-            """.trimIndent()
+                        HTTP Exception occurred:
+                        Status code: $statusCode
+                        Error body: ${errorBody ?: "No additional information"}
+                    """.trimIndent()
+                } else if (throwable is MqttException) {
+                    errorMessage = """
+                        MQTT Exception occurred:
+                        Reason code: ${throwable.reasonCode}
+                        Message: ${throwable.message ?: "No additional information"}
+                    """.trimIndent()
                 }
 
                 val detailedError = "$errorMessage\n\nStackTrace:\n$stackTrace"

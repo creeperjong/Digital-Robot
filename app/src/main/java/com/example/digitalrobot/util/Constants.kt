@@ -59,6 +59,8 @@ object Constants {
 
             const val SEND_FILE = "$BROKER_NAME/mqtt/SendFile/{{deviceId}}"
 
+            const val TABLET_QR = "$BROKER_NAME/mqtt/tabletqr/{{deviceId}}"
+
             const val NFC_TAG = "{{deviceId}}/wifiNFCReader/tag_scanned"
 
             const val TABLET = "{{deviceId}}-tablet"
@@ -90,6 +92,12 @@ object Constants {
     object Rcsl {
 
         const val BASE_URL = "http://api.rcsl.online:8887/"
+
+    }
+
+    object HomeAssistant {
+
+        const val BASE_URL = "https://ha.rcsl.online/api/webhook/"
 
     }
 
