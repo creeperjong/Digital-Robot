@@ -95,10 +95,4 @@ object Constants {
 
     }
 
-    object HomeAssistant {
-
-        const val BASE_URL = "https://ha.rcsl.online/api/webhook/"
-
-    }
-
 }

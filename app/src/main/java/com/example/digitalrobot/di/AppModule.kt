@@ -18,7 +18,6 @@ import com.example.digitalrobot.domain.usecase.MqttUseCase
 import com.example.digitalrobot.domain.usecase.RcslUseCase
 import com.example.digitalrobot.domain.usecase.SpeechToTextUseCase
 import com.example.digitalrobot.domain.usecase.TextToSpeechUseCase
-import com.example.digitalrobot.util.Constants.HomeAssistant
 import com.example.digitalrobot.util.Constants.LanguageModel
 import com.example.digitalrobot.util.Constants.Rcsl
 import dagger.Module
