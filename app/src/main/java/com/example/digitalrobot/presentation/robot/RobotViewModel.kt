@@ -108,6 +108,7 @@ class RobotViewModel @Inject constructor(
             resultBuffer = "",
             isRunCompleted = true,
         )
+        showToast("Finished!")
     }
 
     /*
@@ -248,11 +249,19 @@ class RobotViewModel @Inject constructor(
     }
 
     private fun sendInputResponseToTablet(result: String) {
-        mqttUseCase.publish(
-            topic = getFullTopic(topic = Mqtt.Topic.STT),
-            message = "${_state.value.username}: $result",
-            qos = 0
-        )
+        viewModelScope.launch {
+            mqttUseCase.publish(
+                topic = getFullTopic(topic = Mqtt.Topic.STT),
+                message = "${_state.value.username}: $result",
+                qos = 0
+            )
+            delay(2000)
+            mqttUseCase.publish(
+                topic = getFullTopic(topic = Mqtt.Topic.STT),
+                message = "",
+                qos = 0
+            )
+        }
     }
 
     private fun sendArgvToTablet(argv: String) {
@@ -347,10 +356,14 @@ class RobotViewModel @Inject constructor(
             }
             getFullTopic(Mqtt.Topic.ASST_ID) -> {
                 _state.value = _state.value.copy(assistantId = message)
+                changeSTTLanguage(Locale.US)
+                changeTTSLanguage(Locale.US)
                 showToast("Set assistant ID: $message")
             }
             getFullTopic(Mqtt.Topic.API_KEY) -> {
                 _state.value = _state.value.copy(gptApiKey = message)
+                changeSTTLanguage(Locale.US)
+                changeTTSLanguage(Locale.US)
                 showToast("Set API key: $message")
             }
             getFullTopic(Mqtt.Topic.TEXT_INPUT) -> {
@@ -413,7 +426,6 @@ class RobotViewModel @Inject constructor(
             }
             getFullTopic(Mqtt.Topic.RESPONSE) -> {
                 if (message == "[END]" || message == "[FINISH]") {
-                    showToast("Finished!")
                     resetAllTempStates()
                 } else {
                     onTabletResponse(message)
@@ -684,9 +696,9 @@ class RobotViewModel @Inject constructor(
             sanitizeTextForTTS(rawText)
         } else {
              when (_state.value.currentTTSLanguage) {
-                 Locale.US -> "The result has shown on the tablet."
-                 Locale.CHINESE -> "結果顯示於平板"
-                 Locale("pl", "PL") -> "Wynik został wyświetlony na tablecie."
+                 Locale.US -> "Please look at the tablet."
+                 Locale.CHINESE -> "請看平板"
+                 Locale("pl", "PL") -> "Proszę spojrzeć na tablet."
                  else -> ""
             }
         }
