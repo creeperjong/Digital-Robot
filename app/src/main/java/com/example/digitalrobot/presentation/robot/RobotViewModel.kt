@@ -143,6 +143,7 @@ class RobotViewModel @Inject constructor(
             is RobotInputMode.TouchSensor -> {
                 if (bodyPart in inputMode.targetBodyParts) {
                     sendPromptAndHandleResponse(bodyPart.touchedTag)
+                    return
                 }
             }
             else -> {}
@@ -163,8 +164,10 @@ class RobotViewModel @Inject constructor(
                     is RobotInputMode.ManualSTT -> {
                         if (_state.value.isListening) {
                             stopSTT()
-                            onSTTDone(_state.value.resultBuffer)
-                            _state.value = _state.value.copy(resultBuffer = "")
+                            if (_state.value.resultBuffer != "") {
+                                onSTTDone(_state.value.resultBuffer)
+                                _state.value = _state.value.copy(resultBuffer = "")
+                            }
                         } else {
                             viewModelScope.launch { startSTT(keepListening = true) }
                         }
@@ -245,6 +248,7 @@ class RobotViewModel @Inject constructor(
         viewModelScope.launch {
             val userCategories = rcslUseCase.getUserCategories(deviceId = _state.value.deviceId)
             _state.value = _state.value.copy(nfcDefinitions = userCategories)
+            Log.d("viewmodel", _state.value.nfcDefinitions.values.flatten().toString())
         }
     }
 
@@ -410,17 +414,12 @@ class RobotViewModel @Inject constructor(
                 onScan(message)
             }
             getFullTopic(Mqtt.Topic.NFC_TAG) -> {
-                val username = getPropertyFromJsonString(
-                    json = message,
-                    propertyName = "USERNAME",
-                    expectedType = String::class
-                ) ?: "Unknown user"
                 val tag = getPropertyFromJsonString(
                     json = message,
                     propertyName = "UID",
                     expectedType = String::class
                 ) ?: "Tag not found"
-                val definitions = _state.value.nfcDefinitions[username] ?: emptyList()
+                val definitions = _state.value.nfcDefinitions.values.flatten()
                 val content = definitions.find { it[tag] != null }?.get(tag)
                 onScan(content ?: "Content not found")
             }
@@ -429,6 +428,16 @@ class RobotViewModel @Inject constructor(
                     resetAllTempStates()
                 } else {
                     onTabletResponse(message)
+                }
+            }
+            getFullTopic(Mqtt.Topic.TABLET) -> {
+                val content = getPropertyFromJsonString(
+                    json = message,
+                    propertyName = "TABLET",
+                    expectedType = String::class
+                )
+                if (content != null) {
+                    onTabletResponse(content)
                 }
             }
             else -> {}
@@ -578,7 +587,7 @@ class RobotViewModel @Inject constructor(
                 languageModelUseCase.sendMessage(
                     threadId = threadId,
                     role = "user",
-                    content = if (prompt.toString().isEmpty()) "continue" else prompt,
+                    content = if (prompt.toString().isEmpty()) "Repeat" else prompt,
                     attachments = attachment,
                     gptApiKey = gptApiKey
                 )
@@ -619,12 +628,14 @@ class RobotViewModel @Inject constructor(
     }
 
     private fun handleResponse(response: Message?) {
-        val rawText = getNestedValueFromLinkedTreeMap(
-            map = response?.content?.firstOrNull() as LinkedTreeMap<*, *>,
-            nestedKey = "text.value",
-            expectedType = String::class
-        ) ?: ""
-        val imageIds = extractImageIdsFromMessage(response)
+        val rawText = (response?.content?.firstOrNull() as? LinkedTreeMap<*, *>)?.let {
+            getNestedValueFromLinkedTreeMap(
+                map = it,
+                nestedKey = "text.value",
+                expectedType = String::class
+            )
+        } ?: ""
+        val imageIds = response?.let { extractImageIdsFromMessage(it) }
 
         // TODO: Handle annotations in Text (in ai2)
 
@@ -704,7 +715,7 @@ class RobotViewModel @Inject constructor(
         }
         val captionText = sanitizeTextForCaption(rawText)
 
-        sendImageIdsToTablet(imageIds)
+        sendImageIdsToTablet(imageIds ?: emptyList())
         sendArgvToTablet(if (_state.value.displayOn) "DISPLAY ON" else "DISPLAY OFF")
         sendCaptionToTablet(captionText)
         startTTS(text = ttsText, videoResId = expression)
