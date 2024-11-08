@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.digitalrobot.R
 import com.example.digitalrobot.domain.model.llm.Message
+import com.example.digitalrobot.domain.model.llm.Run
 import com.example.digitalrobot.domain.model.llm.common.Attachment
 import com.example.digitalrobot.domain.usecase.LanguageModelUseCase
 import com.example.digitalrobot.domain.usecase.MqttUseCase
@@ -244,11 +245,18 @@ class RobotViewModel @Inject constructor(
         )
     }
 
-    private fun getNFCDefinitions() {
+    private fun getNFCDefinitions(robotName: String? = null) {
         viewModelScope.launch {
-            val userCategories = rcslUseCase.getUserCategories(deviceId = _state.value.deviceId)
+            val userCategories = if (robotName != null) {
+                rcslUseCase.getUserCategoriesByName(
+                    robotName = robotName
+                )
+            } else {
+                rcslUseCase.getUserCategoriesBySerialNumber(
+                    deviceId = _state.value.deviceId
+                )
+            }
             _state.value = _state.value.copy(nfcDefinitions = userCategories)
-            Log.d("viewmodel", _state.value.nfcDefinitions.values.flatten().toString())
         }
     }
 
@@ -283,6 +291,33 @@ class RobotViewModel @Inject constructor(
             message = gson.toJson(imageIds),
             qos = 0
         )
+    }
+
+    private fun getDataFromDb(args: String) {
+
+        val robotName = getPropertyFromJsonString(
+            json = args,
+            propertyName = "robot_name",
+            expectedType = String::class
+        )
+
+        val sqlQuery = getPropertyFromJsonString(
+            json = args,
+            propertyName = "sql_query",
+            expectedType = String::class
+        )
+        if (!robotName.isNullOrEmpty()) {
+            viewModelScope.launch {
+                getNFCDefinitions(robotName)
+                submitToolOutputsAndHandleResponse(
+                    output = "NFC learning contents have retrieved successfully"
+                )
+            }
+        } else if (!sqlQuery.isNullOrEmpty()) {
+            executeSqlAndSendResult(sqlQuery)
+        } else {
+            submitToolOutputsAndHandleResponse("No robot name or SQL query provided.")
+        }
     }
 
     /*
@@ -489,6 +524,9 @@ class RobotViewModel @Inject constructor(
             RobotInputMode.AutoSTT -> {
                 viewModelScope.launch { startSTT() }
             }
+            RobotInputMode.TouchTablet -> {
+                sendArgvToTablet("wait_for_tap")
+            }
             else -> {}
         }
     }
@@ -581,6 +619,7 @@ class RobotViewModel @Inject constructor(
 
         viewModelScope.launch {
             var response: Message? = null
+            var args: String? = null
             try {
                 _state.value = _state.value.copy(isRunCompleted = false)
                 showToast("Message sent. Waiting for response...")
@@ -598,24 +637,49 @@ class RobotViewModel @Inject constructor(
                     instructions = null,
                     gptApiKey = gptApiKey
                 )
+                _state.value = _state.value.copy(runId = runId)
 
-                var status: String
+                var run: Run
                 do {
-                    status = languageModelUseCase.getRunStatus(
+                    run = languageModelUseCase.getRunStatus(
                         threadId = threadId,
                         runId = runId,
                         gptApiKey = gptApiKey
                     )
-                    if (status != "completed") {
-                        delay(1000)
+                    when (run.status) {
+                        "in_progress" -> {
+                            delay(1000)
+                        }
+                        "completed",
+                        "requires_action" -> {
+                            break
+                        }
+                        else -> {
+                            throw Exception("LLM: Unexpected run status")
+                        }
                     }
-                } while (status != "completed")
-                _state.value = _state.value.copy(isRunCompleted = true)
+                } while (true)
 
-                response = languageModelUseCase.getAssistantResponse(
-                    threadId = threadId,
-                    gptApiKey = gptApiKey
-                )
+                when (run.status) {
+                    "completed" -> {
+                        _state.value = _state.value.copy(isRunCompleted = true)
+
+                        response = languageModelUseCase.getAssistantResponse(
+                            threadId = threadId,
+                            gptApiKey = gptApiKey
+                        )
+                    }
+                    "requires_action" -> {
+                        val toolsCall = run.required_action
+                            ?.submit_tool_outputs
+                            ?.tool_calls
+                            ?.get(0)
+                        _state.value = _state.value.copy(toolCallId = toolsCall?.id ?: "")
+                        if (toolsCall?.function?.name == "get_database_data") {
+                            args = toolsCall.function.arguments
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 if (retryCount < maxRetries) {
                     sendPromptAndHandleResponse(prompt, attachment, retryCount + 1)
@@ -623,7 +687,84 @@ class RobotViewModel @Inject constructor(
                     throw e
                 }
             }
-            handleResponse(response)
+            if (response != null) {
+                handleResponse(response)
+            }
+            if (args != null) {
+                getDataFromDb(args)
+            }
+        }
+    }
+
+    private fun executeSqlAndSendResult(queryString: String) {
+        viewModelScope.launch {
+            val result = rcslUseCase.executeSqlQuery(queryString)
+            submitToolOutputsAndHandleResponse(result.toString())
+        }
+    }
+
+    private fun submitToolOutputsAndHandleResponse(
+        output: String,
+        retryCount: Int = 0
+    ) {
+        val maxRetries = 3
+        val threadId = _state.value.threadId
+        val runId = _state.value.runId
+        val toolCallId = _state.value.toolCallId
+        val gptApiKey = _state.value.gptApiKey
+
+        viewModelScope.launch {
+            var response: Message? = null
+            try {
+                showToast("Function message sent. Waiting for response...")
+                languageModelUseCase.submitToolOutputs(
+                    threadId = threadId,
+                    runId = runId,
+                    toolCallId = toolCallId,
+                    output = output,
+                    gptApiKey = gptApiKey
+                )
+
+                var run: Run
+                do {
+                    run = languageModelUseCase.getRunStatus(
+                        threadId = threadId,
+                        runId = runId,
+                        gptApiKey = gptApiKey
+                    )
+                    when (run.status) {
+                        "in_progress" -> {
+                            delay(1000)
+                        }
+                        "completed" -> {
+                            break
+                        }
+                        else -> {
+                            throw Exception("LLM: Unexpected run status")
+                        }
+                    }
+                } while (true)
+
+                _state.value = _state.value.copy(isRunCompleted = true)
+
+                response = languageModelUseCase.getAssistantResponse(
+                    threadId = threadId,
+                    gptApiKey = gptApiKey
+                )
+
+            } catch (e: Exception) {
+                if (retryCount < maxRetries) {
+                    submitToolOutputsAndHandleResponse(
+                        output = output,
+                        retryCount = retryCount + 1
+                    )
+                } else {
+                    throw e
+                }
+            }
+            if (response != null) {
+                handleResponse(response)
+            }
         }
     }
 

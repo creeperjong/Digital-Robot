@@ -7,6 +7,7 @@ import com.example.digitalrobot.data.remote.dto.request.CreateMessageRequest
 import com.example.digitalrobot.data.remote.dto.request.CreateRunRequest
 import com.example.digitalrobot.domain.model.llm.common.Attachment
 import com.example.digitalrobot.data.remote.dto.request.CreateThreadRequest
+import com.example.digitalrobot.data.remote.dto.request.SubmitToolOutputsRequest
 import com.example.digitalrobot.domain.model.llm.Assistant
 import com.example.digitalrobot.domain.model.llm.AssistantList
 import com.example.digitalrobot.domain.model.llm.Message
@@ -113,6 +114,28 @@ class LanguageModelRepository(
         return try {
             languageModelApi.listMessages(
                 threadId = threadId,
+                apiKey = apiKey
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw e
+        }
+    }
+
+    override suspend fun submitToolOutputs(
+        threadId: String,
+        runId: String,
+        toolCallId: String,
+        output: String,
+        apiKey: String,
+    ): Run {
+        return try {
+            languageModelApi.submitToolOutputs(
+                threadId = threadId,
+                runId = runId,
+                request = SubmitToolOutputsRequest(
+                    tool_outputs = listOf(SubmitToolOutputsRequest.ToolOutput(tool_call_id = toolCallId, output = output))
+                ),
                 apiKey = apiKey
             )
         } catch (e: Exception) {

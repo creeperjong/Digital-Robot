@@ -3,6 +3,7 @@ package com.example.digitalrobot.data.remote
 import com.example.digitalrobot.data.remote.dto.request.CreateThreadRequest
 import com.example.digitalrobot.data.remote.dto.request.CreateRunRequest
 import com.example.digitalrobot.data.remote.dto.request.CreateMessageRequest
+import com.example.digitalrobot.data.remote.dto.request.SubmitToolOutputsRequest
 import com.example.digitalrobot.domain.model.llm.Thread
 import com.example.digitalrobot.domain.model.llm.Assistant
 import com.example.digitalrobot.domain.model.llm.AssistantList
@@ -59,6 +60,14 @@ interface LanguageModelApi {
     suspend fun retrieveRun(
         @Path("threadId") threadId: String,
         @Path("runId") runId: String,
+        @Header("Authorization") apiKey: String
+    ): Run
+
+    @POST("threads/{threadId}/runs/{runId}/submit_tool_outputs")
+    suspend fun submitToolOutputs(
+        @Path("threadId") threadId: String,
+        @Path("runId") runId: String,
+        @Body request: SubmitToolOutputsRequest,
         @Header("Authorization") apiKey: String
     ): Run
 }

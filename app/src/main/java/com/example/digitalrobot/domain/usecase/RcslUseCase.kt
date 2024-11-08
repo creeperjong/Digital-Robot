@@ -1,9 +1,14 @@
 package com.example.digitalrobot.domain.usecase
 
+import android.util.Log
 import com.example.digitalrobot.domain.model.rcsl.Robot
 import com.example.digitalrobot.domain.repository.IRcslRepository
 import com.example.digitalrobot.util.getValueFromLinkedTreeMap
 import com.google.gson.internal.LinkedTreeMap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 class RcslUseCase(
     private val rcslRepository: IRcslRepository
@@ -12,8 +17,17 @@ class RcslUseCase(
         return rcslRepository.getRobotList()
     }
 
-    suspend fun getUserCategories(deviceId: String): Map<String, List<Map<String, String>>> {
-        val users = rcslRepository.getRobotCategory(deviceId)
+    suspend fun getUserCategoriesBySerialNumber(deviceId: String): Map<String, List<Map<String, String>>> {
+        val users = rcslRepository.getRobotCategoryBySerialNumber(deviceId)
+        return parseCategoriesResponse(users)
+    }
+
+    suspend fun getUserCategoriesByName(robotName: String): Map<String, List<Map<String, String>>> {
+        val users = rcslRepository.getRobotCategoryByName(robotName)
+        return parseCategoriesResponse(users)
+    }
+
+    private fun parseCategoriesResponse(users: List<Any>): Map<String, List<Map<String, String>>> {
         val result: MutableMap<String, List<Map<String, String>>> = mutableMapOf()
         for (user in users) {
             val name = getValueFromLinkedTreeMap(
@@ -38,5 +52,9 @@ class RcslUseCase(
             result[name] = categories
         }
         return result
+    }
+
+    suspend fun executeSqlQuery(queryString: String): List<Map<String, String>> {
+        return rcslRepository.executeSqlQuery(queryString)
     }
 }

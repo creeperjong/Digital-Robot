@@ -6,6 +6,10 @@ interface IRcslRepository {
 
     suspend fun getRobotList(): List<Robot>
 
-    suspend fun getRobotCategory(robotSerialNumber: String): List<Any>
+    suspend fun getRobotCategoryBySerialNumber(robotSerialNumber: String): List<Any>
+
+    suspend fun getRobotCategoryByName(robotName: String): List<Any>
+
+    suspend fun executeSqlQuery(queryString: String): List<Map<String, String>>
 
 }

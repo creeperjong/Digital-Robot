@@ -4,6 +4,7 @@ import com.example.digitalrobot.domain.model.llm.Assistant
 import com.example.digitalrobot.domain.model.llm.AssistantList
 import com.example.digitalrobot.domain.model.llm.common.Attachment
 import com.example.digitalrobot.domain.model.llm.Message
+import com.example.digitalrobot.domain.model.llm.Run
 import com.example.digitalrobot.domain.model.llm.common.ToolResources
 import com.example.digitalrobot.domain.repository.ILanguageModelRepository
 
@@ -64,12 +65,12 @@ class LanguageModelUseCase(
         threadId: String,
         runId: String,
         gptApiKey: String
-    ): String {
+    ): Run {
         return languageModelRepository.retrieveRun(
             threadId = threadId,
             runId = runId,
             apiKey = gptApiKey
-        ).status
+        )
     }
 
     suspend fun getAssistantResponse(
@@ -80,5 +81,21 @@ class LanguageModelUseCase(
             threadId = threadId,
             apiKey = gptApiKey
         ).data.firstOrNull()
+    }
+
+    suspend fun submitToolOutputs(
+        threadId: String,
+        runId: String,
+        toolCallId: String,
+        output: String,
+        gptApiKey: String
+    ): Run {
+        return languageModelRepository.submitToolOutputs(
+            threadId = threadId,
+            runId = runId,
+            toolCallId = toolCallId,
+            output = output,
+            apiKey = gptApiKey
+        )
     }
 }

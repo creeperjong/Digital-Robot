@@ -50,4 +50,12 @@ interface ILanguageModelRepository {
         threadId: String,
         apiKey: String
     ): MessageList
+
+    suspend fun submitToolOutputs(
+        threadId: String,
+        runId: String,
+        toolCallId: String,
+        output: String,
+        apiKey: String
+    ): Run
 }

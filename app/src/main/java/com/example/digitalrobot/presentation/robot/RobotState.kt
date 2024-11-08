@@ -36,5 +36,7 @@ data class RobotState(
     val assistantId: String = BuildConfig.DEFAULT_MPI_ASSISTANT_ID,
     val assistantName: String = "",
     val threadId: String = "",
+    val runId: String = "",
+    val toolCallId: String = "",
     val isRunCompleted: Boolean = true
 )
