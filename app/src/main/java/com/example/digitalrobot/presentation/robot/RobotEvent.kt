@@ -20,7 +20,11 @@ sealed class RobotEvent {
 
     data class InitTTS(val context: Context): RobotEvent()
 
-    data class StartTTS(val text: String, @RawRes val videoResId: Int): RobotEvent()
+    data class StartTTS(
+        val text: String,
+        @RawRes val videoResId: Int,
+        @RawRes val motionResId: Int,
+    ): RobotEvent()
 
     data object StopTTS: RobotEvent()
 

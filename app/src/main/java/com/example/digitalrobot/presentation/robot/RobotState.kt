@@ -14,7 +14,8 @@ data class RobotState(
     // R&T
     val username: String = "Learner",
     val deviceId: String = "",
-    @RawRes val faceResId: Int = R.raw.smile,
+    @RawRes val faceResId: Int = R.raw.e_smile,
+    @RawRes val motionResId: Int = R.raw.m_idle,
     val inputMode: RobotInputMode = RobotInputMode.Start,
     val ttsOn: Boolean = true,
     val displayOn: Boolean = true,
@@ -23,7 +24,8 @@ data class RobotState(
     // TTS
     val isSpeaking: Boolean = false,
     val lastSpokenText: String = "",
-    @RawRes val lastSpokenFaceResId: Int = R.raw.normal,
+    @RawRes val lastSpokenFaceResId: Int = R.raw.e_normal,
+    @RawRes val lastSpokenMotionResId: Int = R.raw.m_idle,
     val currentTTSLanguage: Locale = Locale.US,
 
     // STT

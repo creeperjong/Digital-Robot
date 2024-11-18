@@ -61,7 +61,7 @@ class RobotViewModel @Inject constructor(
                 initTTS(event.context)
             }
             is RobotEvent.StartTTS -> {
-                startTTS(event.text, event.videoResId)
+                startTTS(event.text, event.videoResId, event.motionResId)
             }
             is RobotEvent.StopTTS -> {
                 stopTTS()
@@ -98,13 +98,14 @@ class RobotViewModel @Inject constructor(
         stopSTT()
         _state.value = _state.value.copy(
             displayTouchArea = false,
-            faceResId = R.raw.smile,
+            faceResId = R.raw.e_smile,
+            motionResId = R.raw.m_idle,
             inputMode = RobotInputMode.Start,
             ttsOn = true,
             displayOn = true,
             isSpeaking = false,
             lastSpokenText = "",
-            lastSpokenFaceResId = R.raw.normal,
+            lastSpokenFaceResId = R.raw.e_normal,
             isListening = false,
             resultBuffer = "",
             isRunCompleted = true,
@@ -156,7 +157,8 @@ class RobotViewModel @Inject constructor(
                     stopSTT()
                     startTTS(
                         text = _state.value.lastSpokenText,
-                        videoResId = _state.value.lastSpokenFaceResId
+                        faceResId = _state.value.lastSpokenFaceResId,
+                        motionResId = _state.value.lastSpokenMotionResId
                     )
                 }
             }
@@ -184,14 +186,14 @@ class RobotViewModel @Inject constructor(
             }
             RobotBodyPart.LEFT_FACE -> {
                 when (_state.value.currentTTSLanguage) {
-                    Locale.US -> { changeTTSLanguage(Locale.CHINESE) }
-                    Locale.CHINESE -> { changeTTSLanguage(Locale("pl", "PL")) }
+                    Locale.US -> { changeTTSLanguage(Locale.TRADITIONAL_CHINESE) }
+                    Locale.TRADITIONAL_CHINESE -> { changeTTSLanguage(Locale("pl", "PL")) }
                     Locale("pl", "PL") -> { changeTTSLanguage(Locale.US) }
                     else -> {}
                 }
                 when (_state.value.currentSTTLanguage) {
-                    Locale.US -> { changeSTTLanguage(Locale.CHINESE) }
-                    Locale.CHINESE -> { changeSTTLanguage(Locale("pl", "PL")) }
+                    Locale.US -> { changeSTTLanguage(Locale.TRADITIONAL_CHINESE) }
+                    Locale.TRADITIONAL_CHINESE -> { changeSTTLanguage(Locale("pl", "PL")) }
                     Locale("pl", "PL") -> { changeSTTLanguage(Locale.US) }
                     else -> {}
                 }
@@ -309,9 +311,7 @@ class RobotViewModel @Inject constructor(
         if (!robotName.isNullOrEmpty()) {
             viewModelScope.launch {
                 getNFCDefinitions(robotName)
-                submitToolOutputsAndHandleResponse(
-                    output = "NFC learning contents have retrieved successfully"
-                )
+                submitToolOutputsAndHandleResponse(_state.value.nfcDefinitions.toString())
             }
         } else if (!sqlQuery.isNullOrEmpty()) {
             executeSqlAndSendResult(sqlQuery)
@@ -383,10 +383,15 @@ class RobotViewModel @Inject constructor(
                     propertyName = "UID",
                     expectedType = String::class
                 )
+                val content = getPropertyFromJsonString(
+                    json = message,
+                    propertyName = "TAGCONTENT",
+                    expectedType = String::class
+                )
                 val bodyPart = RobotBodyPart.fromCode(bodyPartId)
                 if ( bodyPart != null ){
                     onTap(bodyPart)
-                } else if ( uid != null ) {
+                } else if ( uid != null && content == null) {
                     onScan(uid)
                 }
                 if (!username.isNullOrEmpty()) {
@@ -491,12 +496,14 @@ class RobotViewModel @Inject constructor(
         )
     }
 
-    private fun startTTS(text: String, @RawRes videoResId: Int) {
+    private fun startTTS(text: String, @RawRes faceResId: Int, @RawRes motionResId: Int) {
         _state.value = _state.value.copy(
             isSpeaking = true,
             lastSpokenText = text,
-            lastSpokenFaceResId = videoResId,
-            faceResId = videoResId
+            lastSpokenFaceResId = faceResId,
+            lastSpokenMotionResId = motionResId,
+            faceResId = faceResId,
+            motionResId = motionResId
         )
 
         textToSpeechUseCase.speak(text)
@@ -506,7 +513,8 @@ class RobotViewModel @Inject constructor(
         textToSpeechUseCase.stop()
         _state.value = _state.value.copy(
             isSpeaking = false,
-            faceResId = R.raw.smile
+            faceResId = R.raw.e_smile,
+            motionResId = R.raw.m_idle
         )
     }
 
@@ -518,7 +526,8 @@ class RobotViewModel @Inject constructor(
     private fun onTTSComplete() {
         _state.value = _state.value.copy(
             isSpeaking = false,
-            faceResId = R.raw.smile
+            faceResId = R.raw.e_smile,
+            motionResId = R.raw.m_idle
         )
         when(_state.value.inputMode) {
             RobotInputMode.AutoSTT -> {
@@ -769,6 +778,7 @@ class RobotViewModel @Inject constructor(
     }
 
     private fun handleResponse(response: Message?) {
+        if (_state.value.inputMode == RobotInputMode.Start) return
         val rawText = (response?.content?.firstOrNull() as? LinkedTreeMap<*, *>)?.let {
             getNestedValueFromLinkedTreeMap(
                 map = it,
@@ -782,7 +792,8 @@ class RobotViewModel @Inject constructor(
 
         // Handle tags in response
         val tags = extractTagsFromText(rawText)
-        var expression = R.raw.normal
+        var expression = R.raw.e_normal
+        var motion = R.raw.m_idle
         for ((i, tag) in tags.withIndex()) {
             when (tag) {
                 "FINISH" -> {
@@ -830,26 +841,28 @@ class RobotViewModel @Inject constructor(
                     changeSTTLanguage(Locale.US)
                 }
                 "LANGUAGE = CHINESE" -> {
-                    changeTTSLanguage(Locale.CHINESE)
-                    changeSTTLanguage(Locale.CHINESE)
+                    changeTTSLanguage(Locale.TRADITIONAL_CHINESE)
+                    changeSTTLanguage(Locale.TRADITIONAL_CHINESE)
                 }
                 "LANGUAGE = POLISH" -> {
                     changeTTSLanguage(Locale("pl", "PL"))
                     changeSTTLanguage(Locale("pl", "PL"))
                 }
                 in Robot.EXPRESSION -> {
-                    expression = Robot.EXPRESSION[tag] ?: R.raw.normal
+                    expression = Robot.EXPRESSION[tag] ?: R.raw.e_normal
+                }
+                in Robot.MOTION -> {
+                    motion = Robot.MOTION[tag] ?: R.raw.m_idle
                 }
                 else -> {}
             }
         }
-        // TODO: Handle motion tag
         val ttsText = if (_state.value.ttsOn) {
             sanitizeTextForTTS(rawText)
         } else {
              when (_state.value.currentTTSLanguage) {
                  Locale.US -> "Please look at the tablet."
-                 Locale.CHINESE -> "請看平板"
+                 Locale.TRADITIONAL_CHINESE -> "請看平板"
                  Locale("pl", "PL") -> "Proszę spojrzeć na tablet."
                  else -> ""
             }
@@ -859,7 +872,7 @@ class RobotViewModel @Inject constructor(
         sendImageIdsToTablet(imageIds ?: emptyList())
         sendArgvToTablet(if (_state.value.displayOn) "DISPLAY ON" else "DISPLAY OFF")
         sendCaptionToTablet(captionText)
-        startTTS(text = ttsText, videoResId = expression)
+        startTTS(text = ttsText, faceResId = expression, motionResId = motion)
 
     }
 
@@ -908,7 +921,7 @@ class RobotViewModel @Inject constructor(
 
     private fun sanitizeTextForCaption(text: String): String {
         var sanitizedText = text
-        val singleBracketTagRegex = Regex("(?<!!)\\[.*?]")
+        val singleBracketTagRegex = Regex("(?<!!)\\[.*?](?!\\()")
 
         sanitizedText = sanitizedText.replace(singleBracketTagRegex, "")
 

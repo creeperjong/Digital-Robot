@@ -1,7 +1,5 @@
 package com.example.digitalrobot.util
 
-import android.os.Build
-import androidx.annotation.RawRes
 import com.example.digitalrobot.BuildConfig
 import com.example.digitalrobot.R
 
@@ -10,19 +8,59 @@ object Constants {
     object Robot {
 
         val EXPRESSION: Map<String, Int> = mapOf(
-            "SMILE" to R.raw.smile,
-            "ENJOYABLE" to R.raw.enjoyable,
-            "PLAYFUL" to R.raw.playful,
-            "EXCITED" to R.raw.excited,
-            "ADORATION" to R.raw.adoration,
-            "SAD" to R.raw.sad,
-            "CONFUSED" to R.raw.confused,
-            "SLOWEST" to R.raw.slowest,
-            "SLOWER" to R.raw.slower,
-            "NORMAL" to R.raw.normal
+            "SMILE" to R.raw.e_smile,
+            "ENJOYABLE" to R.raw.e_enjoyable,
+            "PLAYFUL" to R.raw.e_playful,
+            "EXCITED" to R.raw.e_excited,
+            "ADORATION" to R.raw.e_adoration,
+            "SAD" to R.raw.e_sad,
+            "CONFUSED" to R.raw.e_confused,
+            "SLOWEST" to R.raw.e_slowest,
+            "SLOWER" to R.raw.e_slower,
+            "NORMAL" to R.raw.e_normal
         )
 
-        // TODO: Action map
+        val MOTION: Map<String, Int> = mapOf(
+            "APPLAUD" to R.raw.m_applaud,
+            "ASK" to R.raw.m_ask,
+            "BATHE" to R.raw.m_bathe,
+            "BOW" to R.raw.m_bow,
+            "BYE" to R.raw.m_bye,
+            "CHEER" to R.raw.m_cheer,
+            "CURSE" to R.raw.m_curse,
+            "DICTATE_L" to R.raw.m_dictate_l,
+            "DICTATE_R" to R.raw.m_dictate_r,
+            "DRAW_CIRCLE" to R.raw.m_draw_circle,
+            "EMBRACE" to R.raw.m_embrace,
+            "HAPPY01" to R.raw.m_happy01,
+            "HELLO" to R.raw.m_hello,
+            "HIT_KEYBOARD" to R.raw.m_hit_keyboard,
+            "HORIZONTAL_BAR" to R.raw.m_horizontal_bar,
+            "IDLE" to R.raw.m_idle,
+            "INTIMIDATE_B" to R.raw.m_intimidate_b,
+            "KNOCK_DOOR" to R.raw.m_knock_door,
+            "LISTEN" to R.raw.m_listen,
+            "LISTEN_SONG" to R.raw.m_listen_song,
+            "LOOK_D038" to R.raw.m_look_d038,
+            "LOOK_FOR" to R.raw.m_look_for,
+            "MARIO" to R.raw.m_mario,
+            "NOD_HEAD" to R.raw.m_nod_head,
+            "PUSH_FAST" to R.raw.m_push_fast,
+            "ROTATE_A" to R.raw.m_rotate_a,
+            "ROTATE_C" to R.raw.m_rotate_c,
+            "RZ_ARM_L90" to R.raw.m_rz_arm_l90,
+            "RZ_ARM_R90" to R.raw.m_rz_arm_r90,
+            "SAD03" to R.raw.m_sad03,
+            "SICK" to R.raw.m_sick,
+            "SNEAK" to R.raw.m_sneak,
+            "TALK_S" to R.raw.m_talk_s,
+            "TALK_Y" to R.raw.m_talk_y,
+            "THINK" to R.raw.m_think,
+            "TIDY" to R.raw.m_tidy,
+            "WEAR" to R.raw.m_wear,
+            "YO_L" to R.raw.m_yo_l,
+            "YO_R" to R.raw.m_yo_r
+        )
     }
 
     object Mqtt {
