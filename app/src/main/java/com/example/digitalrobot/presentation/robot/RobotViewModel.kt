@@ -459,9 +459,15 @@ class RobotViewModel @Inject constructor(
                     propertyName = "UID",
                     expectedType = String::class
                 ) ?: "Tag not found"
+                val username = getPropertyFromJsonString(
+                    json = message,
+                    propertyName = "USERNAME",
+                    expectedType = String::class
+                ) ?: _state.value.username
                 val definitions = _state.value.nfcDefinitions.values.flatten()
                 val content = definitions.find { it[tag] != null }?.get(tag)
                 onScan(content ?: "Content not found")
+                _state.value = _state.value.copy(username = username)
             }
             getFullTopic(Mqtt.Topic.RESPONSE) -> {
                 if (message == "[END]" || message == "[FINISH]") {
@@ -649,6 +655,7 @@ class RobotViewModel @Inject constructor(
                 _state.value = _state.value.copy(runId = runId)
 
                 var run: Run
+                var attemptCounter = 0
                 do {
                     run = languageModelUseCase.getRunStatus(
                         threadId = threadId,
@@ -657,7 +664,9 @@ class RobotViewModel @Inject constructor(
                     )
                     when (run.status) {
                         "in_progress" -> {
+                            if (attemptCounter == 20) break
                             delay(1000)
+                            ++attemptCounter
                         }
                         "completed",
                         "requires_action" -> {
@@ -670,6 +679,10 @@ class RobotViewModel @Inject constructor(
                 } while (true)
 
                 when (run.status) {
+                    "in_progress" -> {
+                        showToast("Heavy server loading now. Please wait for retrying.")
+                        throw Exception("LLM: No response")
+                    }
                     "completed" -> {
                         _state.value = _state.value.copy(isRunCompleted = true)
 
@@ -690,6 +703,7 @@ class RobotViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
+                _state.value = _state.value.copy(isRunCompleted = true)
                 if (retryCount < maxRetries) {
                     sendPromptAndHandleResponse(prompt, attachment, retryCount + 1)
                 } else {
@@ -735,6 +749,7 @@ class RobotViewModel @Inject constructor(
                 )
 
                 var run: Run
+                var attemptCounter = 0
                 do {
                     run = languageModelUseCase.getRunStatus(
                         threadId = threadId,
@@ -743,7 +758,9 @@ class RobotViewModel @Inject constructor(
                     )
                     when (run.status) {
                         "in_progress" -> {
+                            if (attemptCounter == 20) break
                             delay(1000)
+                            ++attemptCounter
                         }
                         "completed" -> {
                             break
@@ -756,12 +773,23 @@ class RobotViewModel @Inject constructor(
 
                 _state.value = _state.value.copy(isRunCompleted = true)
 
-                response = languageModelUseCase.getAssistantResponse(
-                    threadId = threadId,
-                    gptApiKey = gptApiKey
-                )
+                when (run.status) {
+                    "in_progress" -> {
+                        showToast("Heavy server loading now. Please wait for retrying.")
+                        throw Exception("LLM: No response")
+                    }
+                    "completed" -> {
+                        _state.value = _state.value.copy(isRunCompleted = true)
+
+                        response = languageModelUseCase.getAssistantResponse(
+                            threadId = threadId,
+                            gptApiKey = gptApiKey
+                        )
+                    }
+                }
 
             } catch (e: Exception) {
+                _state.value = _state.value.copy(isRunCompleted = true)
                 if (retryCount < maxRetries) {
                     submitToolOutputsAndHandleResponse(
                         output = output,
@@ -847,6 +875,12 @@ class RobotViewModel @Inject constructor(
                 "LANGUAGE = POLISH" -> {
                     changeTTSLanguage(Locale("pl", "PL"))
                     changeSTTLanguage(Locale("pl", "PL"))
+                }
+                "KEEP_CONTENT ON" -> {
+                    sendArgvToTablet("KEEP_CONTENT ON")
+                }
+                "KEEP_CONTENT OFF" -> {
+                    sendArgvToTablet("KEEP_CONTENT OFF")
                 }
                 in Robot.EXPRESSION -> {
                     expression = Robot.EXPRESSION[tag] ?: R.raw.e_normal
