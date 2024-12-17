@@ -712,9 +712,6 @@ class RobotViewModel @Inject constructor(
                         toolCalls = run.required_action
                             ?.submit_tool_outputs
                             ?.tool_calls
-                        _state.value = _state.value.copy(
-                            toolCallIds = toolCalls?.map { it.id } ?: emptyList()
-                        )
                     }
                 }
             } catch (e: Exception) {

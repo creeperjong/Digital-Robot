@@ -40,6 +40,5 @@ data class RobotState(
     val assistantName: String = "",
     val threadId: String = "",
     val runId: String = "",
-    val toolCallIds: List<String> = emptyList(),
     val isRunCompleted: Boolean = true
 )
