@@ -54,8 +54,8 @@ interface ILanguageModelRepository {
     suspend fun submitToolOutputs(
         threadId: String,
         runId: String,
-        toolCallId: String,
-        output: String,
+        toolCallIds: List<String?>,
+        outputs: List<String?>,
         apiKey: String
     ): Run
 }

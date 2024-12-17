@@ -61,6 +61,8 @@ class RobotViewModel @Inject constructor(
                 initTTS(event.context)
             }
             is RobotEvent.StartTTS -> {
+                stopTTS()
+                stopSTT()
                 startTTS(event.text, event.videoResId, event.motionResId)
             }
             is RobotEvent.StopTTS -> {
@@ -249,19 +251,18 @@ class RobotViewModel @Inject constructor(
         )
     }
 
-    private fun getNFCDefinitions(robotName: String? = null) {
-        viewModelScope.launch {
-            val userCategories = if (robotName != null) {
-                rcslUseCase.getUserCategoriesByName(
-                    robotName = robotName
-                )
-            } else {
-                rcslUseCase.getUserCategoriesBySerialNumber(
-                    deviceId = _state.value.deviceId
-                )
-            }
-            _state.value = _state.value.copy(nfcDefinitions = userCategories)
+    private suspend fun getNFCDefinitions(robotName: String? = null): String {
+        val userCategories = if (robotName != null) {
+            rcslUseCase.getUserCategoriesByName(
+                robotName = robotName
+            )
+        } else {
+            rcslUseCase.getUserCategoriesBySerialNumber(
+                deviceId = _state.value.deviceId
+            )
         }
+        _state.value = _state.value.copy(nfcDefinitions = userCategories)
+        return userCategories.toString()
     }
 
     private fun sendInputResponseToTablet(result: String) {
@@ -297,28 +298,23 @@ class RobotViewModel @Inject constructor(
         )
     }
 
-    private fun getDataFromDb(args: String) {
-
+    private suspend fun getDataFromDb(args: String): String {
         val robotName = getPropertyFromJsonString(
             json = args,
             propertyName = "robot_name",
             expectedType = String::class
         )
-
         val sqlQuery = getPropertyFromJsonString(
             json = args,
             propertyName = "sql_query",
             expectedType = String::class
         )
-        if (!robotName.isNullOrEmpty()) {
-            viewModelScope.launch {
-                getNFCDefinitions(robotName)
-                submitToolOutputsAndHandleResponse(_state.value.nfcDefinitions.toString())
-            }
+        return if (!robotName.isNullOrEmpty()) {
+            getNFCDefinitions(robotName)
         } else if (!sqlQuery.isNullOrEmpty()) {
             executeSqlAndSendResult(sqlQuery)
         } else {
-            submitToolOutputsAndHandleResponse("No robot name or SQL query provided.")
+            "No robot name or SQL query provided."
         }
     }
 
@@ -332,8 +328,10 @@ class RobotViewModel @Inject constructor(
                 host = Mqtt.BROKER_URL,
                 deviceId = _state.value.deviceId,
                 onConnected = {
-                    initialSubscription()
-                    getNFCDefinitions()
+                    viewModelScope.launch {
+                        initialSubscription()
+                        getNFCDefinitions()
+                    }
                 },
                 onMessageArrived = { topic, message ->
                     onMqttMessageArrived(topic, message)
@@ -653,7 +651,7 @@ class RobotViewModel @Inject constructor(
 
         viewModelScope.launch {
             var response: Message? = null
-            var toolsCall: Run.ToolCall? = null
+            var toolCalls: List<Run.ToolCall>? = null
             try {
                 _state.value = _state.value.copy(isRunCompleted = false, timeout = null)
                 showToast("Message sent. Waiting for response...")
@@ -711,11 +709,12 @@ class RobotViewModel @Inject constructor(
                         )
                     }
                     "requires_action" -> {
-                        toolsCall = run.required_action
+                        toolCalls = run.required_action
                             ?.submit_tool_outputs
                             ?.tool_calls
-                            ?.get(0)
-                        _state.value = _state.value.copy(toolCallId = toolsCall?.id ?: "")
+                        _state.value = _state.value.copy(
+                            toolCallIds = toolCalls?.map { it.id } ?: emptyList()
+                        )
                     }
                 }
             } catch (e: Exception) {
@@ -733,37 +732,24 @@ class RobotViewModel @Inject constructor(
             if (response != null) {
                 handleResponse(response)
             }
-            when (toolsCall?.function?.name) {
-                "get_database_data" -> getDataFromDb(toolsCall.function.arguments)
-                "set_timeout" -> {
-                    val s = getPropertyFromJsonString(
-                        json = toolsCall.function.arguments,
-                        propertyName = "timeout_seconds",
-                        expectedType = String::class
-                    )?.toInt()
-                    _state.value = _state.value.copy(timeout = s)
-                    submitToolOutputsAndHandleResponse("success")
-                }
-                else -> {}
+            if (toolCalls != null) {
+                handleToolCallsAndSendResults(toolCalls)
             }
         }
     }
 
-    private fun executeSqlAndSendResult(queryString: String) {
-        viewModelScope.launch {
-            val result = rcslUseCase.executeSqlQuery(queryString)
-            submitToolOutputsAndHandleResponse(result.toString())
-        }
+    private suspend fun executeSqlAndSendResult(queryString: String): String {
+        return rcslUseCase.executeSqlQuery(queryString).toString()
     }
 
     private fun submitToolOutputsAndHandleResponse(
-        output: String,
+        toolCallIds: List<String?>,
+        outputs: List<String?>,
         retryCount: Int = 0
     ) {
         val maxRetries = 3
         val threadId = _state.value.threadId
         val runId = _state.value.runId
-        val toolCallId = _state.value.toolCallId
         val gptApiKey = _state.value.gptApiKey
 
         viewModelScope.launch {
@@ -773,8 +759,8 @@ class RobotViewModel @Inject constructor(
                 languageModelUseCase.submitToolOutputs(
                     threadId = threadId,
                     runId = runId,
-                    toolCallId = toolCallId,
-                    output = output,
+                    toolCallIds = toolCallIds,
+                    outputs = outputs,
                     gptApiKey = gptApiKey
                 )
 
@@ -822,7 +808,8 @@ class RobotViewModel @Inject constructor(
                 _state.value = _state.value.copy(isRunCompleted = true)
                 if (retryCount < maxRetries) {
                     submitToolOutputsAndHandleResponse(
-                        output = output,
+                        toolCallIds = toolCallIds,
+                        outputs = outputs,
                         retryCount = retryCount + 1
                     )
                 } else {
@@ -945,8 +932,33 @@ class RobotViewModel @Inject constructor(
         sendImageIdsToTablet(imageIds ?: emptyList())
         sendArgvToTablet(if (_state.value.displayOn) "DISPLAY ON" else "DISPLAY OFF")
         sendCaptionToTablet(captionText)
+        stopTTS()
+        stopSTT()
         startTTS(text = ttsText, faceResId = expression, motionResId = motion)
+    }
 
+    private fun handleToolCallsAndSendResults(toolCalls: List<Run.ToolCall>) {
+        viewModelScope.launch {
+            val outputs = toolCalls.map { toolCall ->
+                when (toolCall.function.name) {
+                    "get_database_data" -> getDataFromDb(toolCall.function.arguments)
+                    "set_timeout" -> {
+                        val s = getPropertyFromJsonString(
+                            json = toolCall.function.arguments,
+                            propertyName = "timeout_seconds",
+                            expectedType = String::class
+                        )?.toInt()
+                        _state.value = _state.value.copy(timeout = s)
+                        "success"
+                    }
+                    else -> null
+                }
+            }
+            submitToolOutputsAndHandleResponse(
+                toolCallIds = toolCalls.map { it.id },
+                outputs = outputs
+            )
+        }
     }
 
     private fun extractImageIdsFromMessage(message: Message): List<String> {

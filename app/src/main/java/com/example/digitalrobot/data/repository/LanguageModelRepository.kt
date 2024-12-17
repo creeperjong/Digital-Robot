@@ -125,8 +125,8 @@ class LanguageModelRepository(
     override suspend fun submitToolOutputs(
         threadId: String,
         runId: String,
-        toolCallId: String,
-        output: String,
+        toolCallIds: List<String?>,
+        outputs: List<String?>,
         apiKey: String,
     ): Run {
         return try {
@@ -134,7 +134,12 @@ class LanguageModelRepository(
                 threadId = threadId,
                 runId = runId,
                 request = SubmitToolOutputsRequest(
-                    tool_outputs = listOf(SubmitToolOutputsRequest.ToolOutput(tool_call_id = toolCallId, output = output))
+                    tool_outputs = toolCallIds.zip(outputs) { toolCallId, output ->
+                        SubmitToolOutputsRequest.ToolOutput(
+                            tool_call_id = toolCallId,
+                            output = output
+                        )
+                    }
                 ),
                 apiKey = apiKey
             )

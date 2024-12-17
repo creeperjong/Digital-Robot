@@ -86,15 +86,15 @@ class LanguageModelUseCase(
     suspend fun submitToolOutputs(
         threadId: String,
         runId: String,
-        toolCallId: String,
-        output: String,
+        toolCallIds: List<String?>,
+        outputs: List<String?>,
         gptApiKey: String
     ): Run {
         return languageModelRepository.submitToolOutputs(
             threadId = threadId,
             runId = runId,
-            toolCallId = toolCallId,
-            output = output,
+            toolCallIds = toolCallIds,
+            outputs = outputs,
             apiKey = gptApiKey
         )
     }
