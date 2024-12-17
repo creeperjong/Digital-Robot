@@ -1,7 +1,7 @@
 package com.example.digitalrobot.data.repository
 
-import android.util.Log
 import com.example.digitalrobot.data.remote.RcslApi
+import com.example.digitalrobot.domain.model.rcsl.ExecuteSqlResult
 import com.example.digitalrobot.domain.model.rcsl.Robot
 import com.example.digitalrobot.domain.repository.IRcslRepository
 
@@ -36,9 +36,9 @@ class RcslRepository(
         }
     }
 
-    override suspend fun executeSqlQuery(queryString: String): List<Map<String, String>> {
+    override suspend fun executeSqlQuery(queryString: String): ExecuteSqlResult {
         return try {
-            rcslApi.executeSqlQuery(queryString).result ?: emptyList()
+            rcslApi.executeSqlQuery(queryString)
         } catch (e: Exception) {
             e.printStackTrace()
             throw e

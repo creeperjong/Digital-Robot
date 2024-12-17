@@ -1,5 +1,6 @@
 package com.example.digitalrobot.domain.repository
 
+import com.example.digitalrobot.domain.model.rcsl.ExecuteSqlResult
 import com.example.digitalrobot.domain.model.rcsl.Robot
 
 interface IRcslRepository {
@@ -10,6 +11,6 @@ interface IRcslRepository {
 
     suspend fun getRobotCategoryByName(robotName: String): List<Any>
 
-    suspend fun executeSqlQuery(queryString: String): List<Map<String, String>>
+    suspend fun executeSqlQuery(queryString: String): ExecuteSqlResult
 
 }

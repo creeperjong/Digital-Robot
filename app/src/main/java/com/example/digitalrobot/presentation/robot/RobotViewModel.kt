@@ -103,6 +103,7 @@ class RobotViewModel @Inject constructor(
             inputMode = RobotInputMode.Start,
             ttsOn = true,
             displayOn = true,
+            timeout = null,
             isSpeaking = false,
             lastSpokenText = "",
             lastSpokenFaceResId = R.raw.e_normal,
@@ -229,6 +230,7 @@ class RobotViewModel @Inject constructor(
 
     private fun onTabletResponse(message: String) {
         val inputMode = _state.value.inputMode
+        stopSTT()
         when (inputMode) {
             is RobotInputMode.TouchTablet -> {
                 sendPromptAndHandleResponse(message)
@@ -439,6 +441,10 @@ class RobotViewModel @Inject constructor(
                     propertyName = "filename",
                     expectedType = String::class
                 )
+                if ( fileId == null ){
+                    showToast("Error: Please try uploading the file again.")
+                    return
+                }
                 val attachment = listOf(
                     Attachment(
                         file_id = fileId,
@@ -467,7 +473,6 @@ class RobotViewModel @Inject constructor(
                 val definitions = _state.value.nfcDefinitions.values.flatten()
                 val content = definitions.find { it[tag] != null }?.get(tag)
                 onScan(content ?: "Content not found")
-                _state.value = _state.value.copy(username = username)
             }
             getFullTopic(Mqtt.Topic.RESPONSE) -> {
                 if (message == "[END]" || message == "[FINISH]") {
@@ -530,16 +535,30 @@ class RobotViewModel @Inject constructor(
     }
 
     private fun onTTSComplete() {
+        viewModelScope.launch {
+            if (_state.value.timeout != null) {
+                delay(_state.value.timeout!! * 1000L)
+                if (_state.value.timeout != null) {
+                    stopSTT()
+                    sendPromptAndHandleResponse(if (_state.value.timeout == 0) {
+                        "NEXT STEP"
+                    } else {
+                        "TIMEOUT"
+                    })
+                }
+            }
+        }
+        val inputMode = _state.value.inputMode
         _state.value = _state.value.copy(
             isSpeaking = false,
             faceResId = R.raw.e_smile,
             motionResId = R.raw.m_idle
         )
-        when(_state.value.inputMode) {
-            RobotInputMode.AutoSTT -> {
+        when(inputMode) {
+            is RobotInputMode.AutoSTT -> {
                 viewModelScope.launch { startSTT() }
             }
-            RobotInputMode.TouchTablet -> {
+            is RobotInputMode.TouchTablet -> {
                 sendArgvToTablet("wait_for_tap")
             }
             else -> {}
@@ -634,9 +653,9 @@ class RobotViewModel @Inject constructor(
 
         viewModelScope.launch {
             var response: Message? = null
-            var args: String? = null
+            var toolsCall: Run.ToolCall? = null
             try {
-                _state.value = _state.value.copy(isRunCompleted = false)
+                _state.value = _state.value.copy(isRunCompleted = false, timeout = null)
                 showToast("Message sent. Waiting for response...")
                 languageModelUseCase.sendMessage(
                     threadId = threadId,
@@ -692,14 +711,11 @@ class RobotViewModel @Inject constructor(
                         )
                     }
                     "requires_action" -> {
-                        val toolsCall = run.required_action
+                        toolsCall = run.required_action
                             ?.submit_tool_outputs
                             ?.tool_calls
                             ?.get(0)
                         _state.value = _state.value.copy(toolCallId = toolsCall?.id ?: "")
-                        if (toolsCall?.function?.name == "get_database_data") {
-                            args = toolsCall.function.arguments
-                        }
                     }
                 }
             } catch (e: Exception) {
@@ -707,14 +723,28 @@ class RobotViewModel @Inject constructor(
                 if (retryCount < maxRetries) {
                     sendPromptAndHandleResponse(prompt, attachment, retryCount + 1)
                 } else {
+                    showToast("LLM: Unknown error occurred. Please try again.")
+                    if (prompt == "Start" && _state.value.lastSpokenText.isEmpty()) {
+                        _state.value = _state.value.copy(inputMode = RobotInputMode.Start)
+                    }
                     throw e
                 }
             }
             if (response != null) {
                 handleResponse(response)
             }
-            if (args != null) {
-                getDataFromDb(args)
+            when (toolsCall?.function?.name) {
+                "get_database_data" -> getDataFromDb(toolsCall.function.arguments)
+                "set_timeout" -> {
+                    val s = getPropertyFromJsonString(
+                        json = toolsCall.function.arguments,
+                        propertyName = "timeout_seconds",
+                        expectedType = String::class
+                    )?.toInt()
+                    _state.value = _state.value.copy(timeout = s)
+                    submitToolOutputsAndHandleResponse("success")
+                }
+                else -> {}
             }
         }
     }
@@ -796,6 +826,7 @@ class RobotViewModel @Inject constructor(
                         retryCount = retryCount + 1
                     )
                 } else {
+                    showToast("LLM: Unknown error occurred. Please try again.")
                     throw e
                 }
             }
@@ -882,13 +913,21 @@ class RobotViewModel @Inject constructor(
                 "KEEP_CONTENT OFF" -> {
                     sendArgvToTablet("KEEP_CONTENT OFF")
                 }
+                "NEXT STEP" -> {
+                    _state.value = _state.value.copy(timeout = 0)
+                }
                 in Robot.EXPRESSION -> {
                     expression = Robot.EXPRESSION[tag] ?: R.raw.e_normal
                 }
                 in Robot.MOTION -> {
                     motion = Robot.MOTION[tag] ?: R.raw.m_idle
                 }
-                else -> {}
+                else -> {
+                    if (tag.contains("TIMEOUT")) {
+                        val s = tag.split(" ").last().toInt()
+                        _state.value = _state.value.copy(timeout = s)
+                    }
+                }
             }
         }
         val ttsText = if (_state.value.ttsOn) {
@@ -942,7 +981,7 @@ class RobotViewModel @Inject constructor(
 
     private fun sanitizeTextForTTS(text: String): String {
         var sanitizedText = text.replace("&", "and")
-        val unwantedSymbolsRegex = Regex("[_*#-]")
+        val unwantedSymbolsRegex = Regex("[`_*#-]")
         val markdownImageRegex = Regex("!?\\[.*?]\\(.*?\\)")
         val tagRegex = "\\[.*?]".toRegex()
 

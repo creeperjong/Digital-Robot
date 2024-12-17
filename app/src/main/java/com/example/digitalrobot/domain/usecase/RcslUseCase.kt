@@ -1,6 +1,7 @@
 package com.example.digitalrobot.domain.usecase
 
 import android.util.Log
+import com.example.digitalrobot.domain.model.rcsl.ExecuteSqlResult
 import com.example.digitalrobot.domain.model.rcsl.Robot
 import com.example.digitalrobot.domain.repository.IRcslRepository
 import com.example.digitalrobot.util.getValueFromLinkedTreeMap
@@ -54,7 +55,7 @@ class RcslUseCase(
         return result
     }
 
-    suspend fun executeSqlQuery(queryString: String): List<Map<String, String>> {
+    suspend fun executeSqlQuery(queryString: String): ExecuteSqlResult {
         return rcslRepository.executeSqlQuery(queryString)
     }
 }

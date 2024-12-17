@@ -2,9 +2,8 @@ package com.example.digitalrobot.data.remote
 
 import com.example.digitalrobot.data.remote.dto.response.GetRobotCategoryResponse
 import com.example.digitalrobot.data.remote.dto.response.GetRobotListResponse
-import com.example.digitalrobot.data.remote.dto.response.ExecuteSqlQueryResponse
+import com.example.digitalrobot.domain.model.rcsl.ExecuteSqlResult
 import retrofit2.http.GET
-import retrofit2.http.POST
 import retrofit2.http.Query
 
 interface RcslApi {
@@ -25,6 +24,6 @@ interface RcslApi {
     @GET("sqlCommand")
     suspend fun executeSqlQuery(
         @Query("sql") queryString: String
-    ): ExecuteSqlQueryResponse
+    ): ExecuteSqlResult
 
 }

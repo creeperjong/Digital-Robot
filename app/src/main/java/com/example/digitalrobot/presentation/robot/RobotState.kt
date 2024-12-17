@@ -20,6 +20,7 @@ data class RobotState(
     val ttsOn: Boolean = true,
     val displayOn: Boolean = true,
     val nfcDefinitions: Map<String, List<Map<String, String>>> = emptyMap(),
+    val timeout: Int? = null,
 
     // TTS
     val isSpeaking: Boolean = false,
