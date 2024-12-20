@@ -111,6 +111,8 @@ class RobotViewModel @Inject constructor(
             lastSpokenFaceResId = R.raw.e_normal,
             isListening = false,
             resultBuffer = "",
+            threadId = "",
+            runId = "",
             isRunCompleted = true,
         )
         showToast("Finished!")
@@ -652,7 +654,26 @@ class RobotViewModel @Inject constructor(
         viewModelScope.launch {
             var response: Message? = null
             var toolCalls: List<Run.ToolCall>? = null
+            var run: Run
+            var runId: String = _state.value.runId
             try {
+                // Cancel previous run if exists
+
+                if (runId.isNotEmpty()) {
+                    run = languageModelUseCase.getRunStatus(
+                        threadId = threadId,
+                        runId = _state.value.runId,
+                        gptApiKey = gptApiKey
+                    )
+                    if (run.status == "in_progress") {
+                        languageModelUseCase.cancelRun(
+                            threadId = threadId,
+                            runId = runId,
+                            gptApiKey = gptApiKey
+                        )
+                    }
+                }
+
                 _state.value = _state.value.copy(isRunCompleted = false, timeout = null)
                 showToast("Message sent. Waiting for response...")
                 languageModelUseCase.sendMessage(
@@ -663,7 +684,7 @@ class RobotViewModel @Inject constructor(
                     gptApiKey = gptApiKey
                 )
 
-                val runId = languageModelUseCase.generateAssistantRunId(
+                runId = languageModelUseCase.generateAssistantRunId(
                     threadId = threadId,
                     assistantId = assistantId,
                     instructions = null,
@@ -671,7 +692,6 @@ class RobotViewModel @Inject constructor(
                 )
                 _state.value = _state.value.copy(runId = runId)
 
-                var run: Run
                 var attemptCounter = 0
                 do {
                     run = languageModelUseCase.getRunStatus(
@@ -680,7 +700,7 @@ class RobotViewModel @Inject constructor(
                         gptApiKey = gptApiKey
                     )
                     when (run.status) {
-                        "in_progress" -> {
+                        "in_progress", "queued" -> {
                             if (attemptCounter == 20) break
                             delay(1000)
                             ++attemptCounter
@@ -690,13 +710,13 @@ class RobotViewModel @Inject constructor(
                             break
                         }
                         else -> {
-                            throw Exception("LLM: Unexpected run status")
+                            throw Exception("LLM: Unexpected run status: ${run.status}")
                         }
                     }
                 } while (true)
 
                 when (run.status) {
-                    "in_progress" -> {
+                    "in_progress", "queued" -> {
                         showToast("Heavy server loading now. Please wait for retrying.")
                         throw Exception("LLM: No response")
                     }
@@ -721,7 +741,7 @@ class RobotViewModel @Inject constructor(
                 } else {
                     showToast("LLM: Unknown error occurred. Please try again.")
                     if (prompt == "Start" && _state.value.lastSpokenText.isEmpty()) {
-                        _state.value = _state.value.copy(inputMode = RobotInputMode.Start)
+                        resetAllTempStates()
                     }
                     throw e
                 }
@@ -770,7 +790,7 @@ class RobotViewModel @Inject constructor(
                         gptApiKey = gptApiKey
                     )
                     when (run.status) {
-                        "in_progress" -> {
+                        "in_progress", "queued" -> {
                             if (attemptCounter == 20) break
                             delay(1000)
                             ++attemptCounter
@@ -787,7 +807,7 @@ class RobotViewModel @Inject constructor(
                 _state.value = _state.value.copy(isRunCompleted = true)
 
                 when (run.status) {
-                    "in_progress" -> {
+                    "in_progress", "queued" -> {
                         showToast("Heavy server loading now. Please wait for retrying.")
                         throw Exception("LLM: No response")
                     }
@@ -837,6 +857,7 @@ class RobotViewModel @Inject constructor(
         val tags = extractTagsFromText(rawText)
         var expression = R.raw.e_normal
         var motion = R.raw.m_idle
+        var keepContentOn: String? = null
         for ((i, tag) in tags.withIndex()) {
             when (tag) {
                 "FINISH" -> {
@@ -892,10 +913,10 @@ class RobotViewModel @Inject constructor(
                     changeSTTLanguage(Locale("pl", "PL"))
                 }
                 "KEEP_CONTENT ON" -> {
-                    sendArgvToTablet("KEEP_CONTENT ON")
+                    keepContentOn = "KEEP_CONTENT ON"
                 }
                 "KEEP_CONTENT OFF" -> {
-                    sendArgvToTablet("KEEP_CONTENT OFF")
+                    keepContentOn = "KEEP_CONTENT OFF"
                 }
                 "NEXT STEP" -> {
                     _state.value = _state.value.copy(timeout = 0)
@@ -929,6 +950,7 @@ class RobotViewModel @Inject constructor(
         sendImageIdsToTablet(imageIds ?: emptyList())
         sendArgvToTablet(if (_state.value.displayOn) "DISPLAY ON" else "DISPLAY OFF")
         sendCaptionToTablet(captionText)
+        sendArgvToTablet(keepContentOn ?: "")
         stopTTS()
         stopSTT()
         startTTS(text = ttsText, faceResId = expression, motionResId = motion)

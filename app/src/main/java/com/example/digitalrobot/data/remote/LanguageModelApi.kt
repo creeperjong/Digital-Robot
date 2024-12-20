@@ -70,4 +70,11 @@ interface LanguageModelApi {
         @Body request: SubmitToolOutputsRequest,
         @Header("Authorization") apiKey: String
     ): Run
+
+    @POST("threads/{threadId}/runs/{runId}/cancel")
+    suspend fun cancelRun(
+        @Path("threadId") threadId: String,
+        @Path("runId") runId: String,
+        @Header("Authorization") apiKey: String
+    ): Run
 }

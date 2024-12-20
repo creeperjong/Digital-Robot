@@ -58,4 +58,10 @@ interface ILanguageModelRepository {
         outputs: List<String?>,
         apiKey: String
     ): Run
+
+    suspend fun cancelRun(
+        threadId: String,
+        runId: String,
+        apiKey: String
+    ): Run
 }

@@ -98,4 +98,16 @@ class LanguageModelUseCase(
             apiKey = gptApiKey
         )
     }
+
+    suspend fun cancelRun(
+        threadId: String,
+        runId: String,
+        gptApiKey: String
+    ) {
+        languageModelRepository.cancelRun(
+            threadId = threadId,
+            runId = runId,
+            apiKey = gptApiKey
+        )
+    }
 }

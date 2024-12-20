@@ -149,5 +149,17 @@ class LanguageModelRepository(
         }
     }
 
+    override suspend fun cancelRun(threadId: String, runId: String, apiKey: String): Run {
+        return try {
+            languageModelApi.cancelRun(
+                threadId = threadId,
+                runId = runId,
+                apiKey = apiKey
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw e
+        }
+    }
 
 }
