@@ -21,17 +21,16 @@ data class RobotState(
     val displayOn: Boolean = true,
     val nfcDefinitions: Map<String, List<Map<String, String>>> = emptyMap(),
     val timeout: Int? = null,
+    val currentLanguage: Locale? = null,
 
     // TTS
     val isSpeaking: Boolean = false,
     val lastSpokenText: String = "",
     @RawRes val lastSpokenFaceResId: Int = R.raw.e_normal,
     @RawRes val lastSpokenMotionResId: Int = R.raw.m_idle,
-    val currentTTSLanguage: Locale = Locale.US,
 
     // STT
     val isListening: Boolean = false,
-    val currentSTTLanguage: Locale = Locale.US,
     val resultBuffer: String = "",
 
     // LLM

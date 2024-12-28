@@ -119,6 +119,9 @@ dependencies {
     // Reflection
     implementation(libs.kotlin.reflect)
 
+    // Language detection
+    implementation(libs.lingua)
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

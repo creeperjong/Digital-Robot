@@ -2,11 +2,14 @@ package com.example.digitalrobot.presentation.robot
 
 import android.content.Context
 import android.util.Log
+import android.view.textclassifier.TextClassifierEvent.CATEGORY_LANGUAGE_DETECTION
+import android.view.textclassifier.TextClassifierEvent.LanguageDetectionEvent
 import androidx.annotation.RawRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.digitalrobot.R
 import com.example.digitalrobot.domain.model.llm.Message
+import com.example.digitalrobot.domain.model.llm.Response
 import com.example.digitalrobot.domain.model.llm.Run
 import com.example.digitalrobot.domain.model.llm.common.Attachment
 import com.example.digitalrobot.domain.usecase.LanguageModelUseCase
@@ -19,6 +22,8 @@ import com.example.digitalrobot.util.Constants.Mqtt
 import com.example.digitalrobot.util.getNestedValueFromLinkedTreeMap
 import com.example.digitalrobot.util.getPropertyFromJsonString
 import com.example.digitalrobot.util.getValueFromLinkedTreeMap
+import com.github.pemistahl.lingua.api.Language
+import com.github.pemistahl.lingua.api.LanguageDetectorBuilder
 import com.google.gson.Gson
 import com.google.gson.internal.LinkedTreeMap
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -70,12 +75,6 @@ class RobotViewModel @Inject constructor(
             }
             is RobotEvent.DestroyTTS -> {
                 destroyTTS()
-            }
-            is RobotEvent.ChangeTTSLanguage -> {
-                changeTTSLanguage(event.locale)
-            }
-            is RobotEvent.ChangeSTTLanguage -> {
-                changeSTTLanguage(event.locale)
             }
             is RobotEvent.InitAssistant -> {
                 startAssistant()
@@ -180,7 +179,9 @@ class RobotViewModel @Inject constructor(
                             viewModelScope.launch { startSTT(keepListening = true) }
                         }
                     }
-                    else -> {}
+                    else -> {
+                        viewModelScope.launch { startSTT(keepListening = false) }
+                    }
                 }
             }
             RobotBodyPart.RIGHT_HAND -> {
@@ -190,20 +191,19 @@ class RobotViewModel @Inject constructor(
 
             }
             RobotBodyPart.LEFT_FACE -> {
-                when (_state.value.currentTTSLanguage) {
-                    Locale.US -> { changeTTSLanguage(Locale.TRADITIONAL_CHINESE) }
-                    Locale.TRADITIONAL_CHINESE -> { changeTTSLanguage(Locale("pl", "PL")) }
-                    Locale("pl", "PL") -> { changeTTSLanguage(Locale.US) }
+                when (_state.value.currentLanguage) {
+                    null -> { changeLanguage(Locale.US) }
+                    Locale.US -> { changeLanguage(Locale.TRADITIONAL_CHINESE) }
+                    Locale.TRADITIONAL_CHINESE -> { changeLanguage(Locale("pl", "PL")) }
+                    Locale("pl", "PL") -> { changeLanguage(null) }
                     else -> {}
                 }
-                when (_state.value.currentSTTLanguage) {
-                    Locale.US -> { changeSTTLanguage(Locale.TRADITIONAL_CHINESE) }
-                    Locale.TRADITIONAL_CHINESE -> { changeSTTLanguage(Locale("pl", "PL")) }
-                    Locale("pl", "PL") -> { changeSTTLanguage(Locale.US) }
-                    else -> {}
+                showToast("Switch language to ${if (_state.value.currentLanguage == null) {
+                    "Auto"
+                } else {
+                    _state.value.currentLanguage?.displayLanguage
                 }
-                showToast("Switch TTS language to ${_state.value.currentTTSLanguage.displayLanguage}\n" +
-                        "Switch STT language to ${_state.value.currentSTTLanguage.displayLanguage}")
+                }")
             }
             RobotBodyPart.RIGHT_FACE -> {
                 when (inputMode) {
@@ -402,14 +402,12 @@ class RobotViewModel @Inject constructor(
             }
             getFullTopic(Mqtt.Topic.ASST_ID) -> {
                 _state.value = _state.value.copy(assistantId = message)
-                changeSTTLanguage(Locale.US)
-                changeTTSLanguage(Locale.US)
+                changeLanguage(null)
                 showToast("Set assistant ID: $message")
             }
             getFullTopic(Mqtt.Topic.API_KEY) -> {
                 _state.value = _state.value.copy(gptApiKey = message)
-                changeSTTLanguage(Locale.US)
-                changeTTSLanguage(Locale.US)
+                changeLanguage(null)
                 showToast("Set API key: $message")
             }
             getFullTopic(Mqtt.Topic.TEXT_INPUT) -> {
@@ -502,12 +500,13 @@ class RobotViewModel @Inject constructor(
     private fun initTTS(context: Context) {
         textToSpeechUseCase.init(
             context = context,
-            language = _state.value.currentTTSLanguage,
+            language = Locale.US,
             onTTSComplete = { onTTSComplete() }
         )
     }
 
     private fun startTTS(text: String, @RawRes faceResId: Int, @RawRes motionResId: Int) {
+        val language = _state.value.currentLanguage ?: detectLanguage(text) ?: Locale.US
         _state.value = _state.value.copy(
             isSpeaking = true,
             lastSpokenText = text,
@@ -516,7 +515,7 @@ class RobotViewModel @Inject constructor(
             faceResId = faceResId,
             motionResId = motionResId
         )
-
+        textToSpeechUseCase.setLanguage(language)
         textToSpeechUseCase.speak(text)
     }
 
@@ -529,16 +528,36 @@ class RobotViewModel @Inject constructor(
         )
     }
 
-    private fun changeTTSLanguage(locale: Locale) {
-        textToSpeechUseCase.setLanguage(locale)
-        _state.value = _state.value.copy(currentTTSLanguage = locale)
+    private fun detectLanguage(text: String): Locale? {
+        // Only support English, Chinese and Polish
+        val languageDetector = LanguageDetectorBuilder.fromLanguages(
+            Language.ENGLISH,
+            Language.CHINESE,
+            Language.POLISH
+        ).build()
+        val language = languageDetector.detectLanguageOf(text)
+        return when(language.toString()) {
+            "CHINESE" -> Locale.TRADITIONAL_CHINESE
+            "ENGLISH" -> Locale.US
+            "POLISH" -> Locale("pl", "PL")
+            else -> null
+        }
+    }
+
+    private fun changeLanguage(locale: Locale?) {
+        if (locale != null) {
+            textToSpeechUseCase.setLanguage(locale)
+        }
+
+        _state.value = _state.value.copy(currentLanguage = locale)
     }
 
     private fun onTTSComplete() {
         viewModelScope.launch {
+            val runId = _state.value.runId
             if (_state.value.timeout != null) {
                 delay(_state.value.timeout!! * 1000L)
-                if (_state.value.timeout != null) {
+                if (_state.value.timeout != null && runId == _state.value.runId) { // In the same run
                     stopSTT()
                     sendPromptAndHandleResponse(if (_state.value.timeout == 0) {
                         "NEXT STEP"
@@ -574,10 +593,10 @@ class RobotViewModel @Inject constructor(
      */
 
     private suspend fun startSTT(keepListening: Boolean = false) {
-        val language = _state.value.currentSTTLanguage
+        val language = _state.value.currentLanguage
         _state.value = _state.value.copy(isListening = true)
         speechToTextUseCase.startListening(
-            language = language,
+            language = language ?: Locale.TRADITIONAL_CHINESE,
             keepListening = keepListening,
             onSTTPartialResult = { result -> onSTTPartialResult(result) },
             onSTTDone = { result -> onSTTDone(result) }
@@ -589,10 +608,6 @@ class RobotViewModel @Inject constructor(
         _state.value = _state.value.copy(
             isListening = false
         )
-    }
-
-    private fun changeSTTLanguage(locale: Locale) {
-        _state.value = _state.value.copy(currentSTTLanguage = locale)
     }
 
     private fun onSTTDone(result: String) {
@@ -652,29 +667,30 @@ class RobotViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            var response: Message? = null
-            var toolCalls: List<Run.ToolCall>? = null
-            var run: Run
+            val response: Response
+            val run: Run
             var runId: String = _state.value.runId
             try {
+                _state.value = _state.value.copy(isRunCompleted = false, timeout = null)
                 // Cancel previous run if exists
 
                 if (runId.isNotEmpty()) {
                     run = languageModelUseCase.getRunStatus(
                         threadId = threadId,
-                        runId = _state.value.runId,
+                        runId = runId,
                         gptApiKey = gptApiKey
                     )
                     if (run.status == "in_progress") {
-                        languageModelUseCase.cancelRun(
+                        showToast("Error occurred. Retrying...")
+                        val cancelled = languageModelUseCase.cancelRun(
                             threadId = threadId,
                             runId = runId,
                             gptApiKey = gptApiKey
                         )
+                        if (!cancelled) throw Exception("LLM: Failed to cancel previous run.")
                     }
                 }
 
-                _state.value = _state.value.copy(isRunCompleted = false, timeout = null)
                 showToast("Message sent. Waiting for response...")
                 languageModelUseCase.sendMessage(
                     threadId = threadId,
@@ -692,48 +708,13 @@ class RobotViewModel @Inject constructor(
                 )
                 _state.value = _state.value.copy(runId = runId)
 
-                var attemptCounter = 0
-                do {
-                    run = languageModelUseCase.getRunStatus(
-                        threadId = threadId,
-                        runId = runId,
-                        gptApiKey = gptApiKey
-                    )
-                    when (run.status) {
-                        "in_progress", "queued" -> {
-                            if (attemptCounter == 20) break
-                            delay(1000)
-                            ++attemptCounter
-                        }
-                        "completed",
-                        "requires_action" -> {
-                            break
-                        }
-                        else -> {
-                            throw Exception("LLM: Unexpected run status: ${run.status}")
-                        }
-                    }
-                } while (true)
+                response = languageModelUseCase.getResponseWhenAvailable(
+                    threadId = threadId,
+                    runId = runId,
+                    gptApiKey = gptApiKey,
+                    showToast = { showToast(it) }
+                )
 
-                when (run.status) {
-                    "in_progress", "queued" -> {
-                        showToast("Heavy server loading now. Please wait for retrying.")
-                        throw Exception("LLM: No response")
-                    }
-                    "completed" -> {
-                        _state.value = _state.value.copy(isRunCompleted = true)
-
-                        response = languageModelUseCase.getAssistantResponse(
-                            threadId = threadId,
-                            gptApiKey = gptApiKey
-                        )
-                    }
-                    "requires_action" -> {
-                        toolCalls = run.required_action
-                            ?.submit_tool_outputs
-                            ?.tool_calls
-                    }
-                }
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isRunCompleted = true)
                 if (retryCount < maxRetries) {
@@ -743,14 +724,15 @@ class RobotViewModel @Inject constructor(
                     if (prompt == "Start" && _state.value.lastSpokenText.isEmpty()) {
                         resetAllTempStates()
                     }
-                    throw e
                 }
+                throw e
             }
-            if (response != null) {
-                handleResponse(response)
+            if (response.response != null) {
+                _state.value = _state.value.copy(isRunCompleted = true)
+                handleResponse(response.response)
             }
-            if (toolCalls != null) {
-                handleToolCallsAndSendResults(toolCalls)
+            if (response.toolCalls != null) {
+                handleToolCallsAndSendResults(response.toolCalls)
             }
         }
     }
@@ -770,7 +752,7 @@ class RobotViewModel @Inject constructor(
         val gptApiKey = _state.value.gptApiKey
 
         viewModelScope.launch {
-            var response: Message? = null
+            val response: Response
             try {
                 showToast("Function message sent. Waiting for response...")
                 languageModelUseCase.submitToolOutputs(
@@ -781,45 +763,12 @@ class RobotViewModel @Inject constructor(
                     gptApiKey = gptApiKey
                 )
 
-                var run: Run
-                var attemptCounter = 0
-                do {
-                    run = languageModelUseCase.getRunStatus(
-                        threadId = threadId,
-                        runId = runId,
-                        gptApiKey = gptApiKey
-                    )
-                    when (run.status) {
-                        "in_progress", "queued" -> {
-                            if (attemptCounter == 20) break
-                            delay(1000)
-                            ++attemptCounter
-                        }
-                        "completed" -> {
-                            break
-                        }
-                        else -> {
-                            throw Exception("LLM: Unexpected run status")
-                        }
-                    }
-                } while (true)
-
-                _state.value = _state.value.copy(isRunCompleted = true)
-
-                when (run.status) {
-                    "in_progress", "queued" -> {
-                        showToast("Heavy server loading now. Please wait for retrying.")
-                        throw Exception("LLM: No response")
-                    }
-                    "completed" -> {
-                        _state.value = _state.value.copy(isRunCompleted = true)
-
-                        response = languageModelUseCase.getAssistantResponse(
-                            threadId = threadId,
-                            gptApiKey = gptApiKey
-                        )
-                    }
-                }
+                response = languageModelUseCase.getResponseWhenAvailable(
+                    threadId = threadId,
+                    runId = runId,
+                    gptApiKey = gptApiKey,
+                    showToast = { showToast(it) }
+                )
 
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isRunCompleted = true)
@@ -831,11 +780,15 @@ class RobotViewModel @Inject constructor(
                     )
                 } else {
                     showToast("LLM: Unknown error occurred. Please try again.")
-                    throw e
                 }
+                throw e
             }
-            if (response != null) {
-                handleResponse(response)
+            if (response.response != null) {
+                _state.value = _state.value.copy(isRunCompleted = true)
+                handleResponse(response.response)
+            }
+            if (response.toolCalls != null) {
+                handleToolCallsAndSendResults(response.toolCalls)
             }
         }
     }
@@ -900,18 +853,6 @@ class RobotViewModel @Inject constructor(
                 "DISPLAY OFF" -> {
                     _state.value = _state.value.copy(displayOn = false)
                 }
-                "LANGUAGE = ENGLISH" -> {
-                    changeTTSLanguage(Locale.US)
-                    changeSTTLanguage(Locale.US)
-                }
-                "LANGUAGE = CHINESE" -> {
-                    changeTTSLanguage(Locale.TRADITIONAL_CHINESE)
-                    changeSTTLanguage(Locale.TRADITIONAL_CHINESE)
-                }
-                "LANGUAGE = POLISH" -> {
-                    changeTTSLanguage(Locale("pl", "PL"))
-                    changeSTTLanguage(Locale("pl", "PL"))
-                }
                 "KEEP_CONTENT ON" -> {
                     keepContentOn = "KEEP_CONTENT ON"
                 }
@@ -928,9 +869,12 @@ class RobotViewModel @Inject constructor(
                     motion = Robot.MOTION[tag] ?: R.raw.m_idle
                 }
                 else -> {
-                    if (tag.contains("TIMEOUT")) {
-                        val s = tag.split(" ").last().toInt()
-                        _state.value = _state.value.copy(timeout = s)
+                    val regex = Regex("\\[TIMEOUT (\\d+)sec]")
+                    val matchResult = regex.find(tag)
+                    if (matchResult != null) {
+                        _state.value = _state.value.copy(
+                            timeout = matchResult.groupValues[1].toInt()
+                        )
                     }
                 }
             }
@@ -938,11 +882,11 @@ class RobotViewModel @Inject constructor(
         val ttsText = if (_state.value.ttsOn) {
             sanitizeTextForTTS(rawText)
         } else {
-             when (_state.value.currentTTSLanguage) {
+             when (_state.value.currentLanguage) {
                  Locale.US -> "Please look at the tablet."
                  Locale.TRADITIONAL_CHINESE -> "請看平板"
                  Locale("pl", "PL") -> "Proszę spojrzeć na tablet."
-                 else -> ""
+                 else -> "Please look at the tablet."
             }
         }
         val captionText = sanitizeTextForCaption(rawText)
@@ -1025,7 +969,7 @@ class RobotViewModel @Inject constructor(
 
     private fun sanitizeTextForCaption(text: String): String {
         var sanitizedText = text
-        val singleBracketTagRegex = Regex("(?<!!)\\[.*?](?!\\()")
+        val singleBracketTagRegex = Regex("(?<!!)\\[[^\\[]*](?!\\()")
 
         sanitizedText = sanitizedText.replace(singleBracketTagRegex, "")
 

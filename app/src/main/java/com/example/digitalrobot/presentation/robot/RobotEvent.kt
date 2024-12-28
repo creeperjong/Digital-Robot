@@ -30,9 +30,5 @@ sealed class RobotEvent {
 
     data object DestroyTTS: RobotEvent()
 
-    data class ChangeTTSLanguage(val locale: Locale): RobotEvent()
-
-    data class ChangeSTTLanguage(val locale: Locale): RobotEvent()
-
     data object InitAssistant: RobotEvent()
 }

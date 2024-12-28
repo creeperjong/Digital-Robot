@@ -4,9 +4,11 @@ import com.example.digitalrobot.domain.model.llm.Assistant
 import com.example.digitalrobot.domain.model.llm.AssistantList
 import com.example.digitalrobot.domain.model.llm.common.Attachment
 import com.example.digitalrobot.domain.model.llm.Message
+import com.example.digitalrobot.domain.model.llm.Response
 import com.example.digitalrobot.domain.model.llm.Run
 import com.example.digitalrobot.domain.model.llm.common.ToolResources
 import com.example.digitalrobot.domain.repository.ILanguageModelRepository
+import kotlinx.coroutines.delay
 
 class LanguageModelUseCase(
     private val languageModelRepository: ILanguageModelRepository
@@ -83,6 +85,63 @@ class LanguageModelUseCase(
         ).data.firstOrNull()
     }
 
+    suspend fun getResponseWhenAvailable(
+        threadId: String,
+        runId: String,
+        gptApiKey: String,
+        showToast: (String) -> Unit
+    ): Response {
+        var response: Message? = null
+        var toolCalls: List<Run.ToolCall>? = null
+        var run: Run
+        var attemptCounter = 0
+        do {
+            run = getRunStatus(
+                threadId = threadId,
+                runId = runId,
+                gptApiKey = gptApiKey
+            )
+            when (run.status) {
+                "in_progress", "queued", "cancelling" -> {
+                    if (attemptCounter == 20) break
+                    delay(1000)
+                    ++attemptCounter
+                }
+                "completed", "requires_action", "cancelled",
+                "failed", "incomplete", "expired" -> {
+                    break
+                }
+                else -> {
+                    throw Exception("LLM: Unexpected run status: ${run.status}")
+                }
+            }
+        } while (true)
+
+        when (run.status) {
+            "in_progress", "queued", "cancelling" -> {
+                showToast("Heavy server loading now. Please wait for retry.")
+                throw Exception("LLM: No response")
+            }
+            "cancelled", "failed", "incomplete", "expired" -> {
+                showToast("Run ${run.status}. Please wait for retry.")
+                throw Exception("LLM: Run ${run.status}")
+            }
+            "completed" -> {
+                response = getAssistantResponse(
+                    threadId = threadId,
+                    gptApiKey = gptApiKey
+                )
+            }
+            "requires_action" -> {
+                toolCalls = run.required_action
+                    ?.submit_tool_outputs
+                    ?.tool_calls
+            }
+        }
+
+        return Response(response = response, toolCalls = toolCalls)
+    }
+
     suspend fun submitToolOutputs(
         threadId: String,
         runId: String,
@@ -103,11 +162,33 @@ class LanguageModelUseCase(
         threadId: String,
         runId: String,
         gptApiKey: String
-    ) {
+    ): Boolean {
+        var attemptCounter = 0
+        var run: Run
         languageModelRepository.cancelRun(
             threadId = threadId,
             runId = runId,
             apiKey = gptApiKey
         )
+
+        do {
+            run = getRunStatus(
+                threadId = threadId,
+                runId = runId,
+                gptApiKey = gptApiKey
+            )
+            when (run.status) {
+                "cancelled", "completed", "failed",
+                "incomplete", "expired"-> {
+                    return true
+                }
+                else -> {
+                    if (attemptCounter == 20) break
+                    delay(1000)
+                    ++attemptCounter
+                }
+            }
+        } while (true)
+        return false
     }
 }
