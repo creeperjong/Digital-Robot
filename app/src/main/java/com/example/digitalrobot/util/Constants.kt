@@ -20,7 +20,7 @@ object Constants {
             "NORMAL" to R.raw.e_normal
         )
 
-        val MOTION: Map<String, Int> = mapOf(
+        val DIGITAL_MOTION: Map<String, Int> = mapOf(
             "APPLAUD" to R.raw.m_applaud,
             "ASK" to R.raw.m_ask,
             "BATHE" to R.raw.m_bathe,
@@ -60,6 +60,48 @@ object Constants {
             "WEAR" to R.raw.m_wear,
             "YOL" to R.raw.m_yo_l,
             "YOR" to R.raw.m_yo_r
+        )
+
+        val PHYSICAL_MOTION: Map<String, String> = mapOf(
+            "APPLAUD" to "666_DA_Applaud",
+            "ASK" to "666_RE_Ask",
+            "BATHE" to "666_DA_Bathe",
+            "BOW" to "666_RE_Bow",
+            "BYE" to "666_RE_Bye",
+            "CHEER" to "666_RE_Cheer",
+            "CURSE" to "666_EM_Curse",
+            "DICTATEL" to "666_TA_DictateL",
+            "DICTATER" to "666_TA_DictateR",
+            "DRAWCIRCLE" to "666_TA_DrawCircle",
+            "EMBRACE" to "666_RE_Embrace",
+            "HAPPY01" to "666_EM_Happy01",
+            "HELLO" to "666_RE_Hello",
+            "HITKEYBOARD" to "666_WO_HitKeyboard",
+            "HORIZONTALBAR" to "666_SP_HorizontalBar",
+            "IDLE" to "",
+            "INTIMIDATEB" to "666_EM_IntimidateB",
+            "KNOCKDOOR" to "666_RE_KnockDoor",
+            "LISTEN" to "666_DA_Listen",
+            "LISTENSONG" to "666_LE_ListenSong",
+            "LOOKD038" to "666_BA_LookD038",
+            "LOOKFOR" to "666_DA_LookFor",
+            "MARIO" to "666_IM_Mario",
+            "NODHEAD" to "666_BA_Nodhead",
+            "PUSHFAST" to "666_DA_PushFast",
+            "ROTATEA" to "666_PE_RotateA",
+            "ROTATEC" to "666_PE_RotateC",
+            "RZARML90" to "666_BA_RzArmL90",
+            "RZARMR90" to "666_BA_RzArmR90",
+            "SAD03" to "666_EM_Sad03",
+            "SICK" to "666_SA_Sick",
+            "SNEAK" to "666_PE_Sneak",
+            "TALKS" to "666_TA_TalkS",
+            "TALKY" to "666_TA_TalkY",
+            "THINK" to "666_DA_Think",
+            "TIDY" to "666_DA_Tidy",
+            "WEAR" to "666_DA_Wear",
+            "YOL" to "666_TA_YoL",
+            "YOR" to "666_TA_YoR"
         )
     }
 
@@ -129,7 +171,7 @@ object Constants {
 
     object Rcsl {
 
-        const val BASE_URL = "http://api.rcsl.online:8887/"
+        const val BASE_URL = "https://api.rcsl.online/"
 
     }
 

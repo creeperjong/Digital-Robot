@@ -2,8 +2,6 @@ package com.example.digitalrobot.presentation.robot
 
 import android.content.Context
 import android.util.Log
-import android.view.textclassifier.TextClassifierEvent.CATEGORY_LANGUAGE_DETECTION
-import android.view.textclassifier.TextClassifierEvent.LanguageDetectionEvent
 import androidx.annotation.RawRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,6 +12,7 @@ import com.example.digitalrobot.domain.model.llm.Run
 import com.example.digitalrobot.domain.model.llm.common.Attachment
 import com.example.digitalrobot.domain.usecase.LanguageModelUseCase
 import com.example.digitalrobot.domain.usecase.MqttUseCase
+import com.example.digitalrobot.domain.usecase.NuwaUseCase
 import com.example.digitalrobot.domain.usecase.RcslUseCase
 import com.example.digitalrobot.domain.usecase.SpeechToTextUseCase
 import com.example.digitalrobot.domain.usecase.TextToSpeechUseCase
@@ -43,6 +42,7 @@ class RobotViewModel @Inject constructor(
     private val speechToTextUseCase: SpeechToTextUseCase,
     private val languageModelUseCase: LanguageModelUseCase,
     private val rcslUseCase: RcslUseCase,
+    private val nuwaUseCase: NuwaUseCase,
 ): ViewModel() {
 
     private val _state = MutableStateFlow(RobotState())
@@ -85,6 +85,9 @@ class RobotViewModel @Inject constructor(
             is RobotEvent.ToggleTouchAreaDisplay -> {
                 toggleTouchAreaDisplay()
             }
+            is RobotEvent.InitNuwaSdk -> {
+                initNuwaSdk(context = event.context)
+            }
         }
     }
 
@@ -95,19 +98,20 @@ class RobotViewModel @Inject constructor(
     }
 
     private fun resetAllTempStates() {
-        stopTTS()
-        stopSTT()
         _state.value = _state.value.copy(
             displayTouchArea = false,
             faceResId = R.raw.e_smile,
             motionResId = R.raw.m_idle,
+            motionString = "",
             inputMode = RobotInputMode.Start,
             ttsOn = true,
             displayOn = true,
+            keepContentOn = true,
             timeout = null,
             isSpeaking = false,
             lastSpokenText = "",
             lastSpokenFaceResId = R.raw.e_normal,
+            lastMotionString = "",
             isListening = false,
             resultBuffer = "",
             threadId = "",
@@ -138,6 +142,21 @@ class RobotViewModel @Inject constructor(
     }
 
     /*
+     *  Nuwa SDK related functions
+     */
+
+    private fun initNuwaSdk(context: Context) {
+        nuwaUseCase.init(
+            context = context,
+            onTap = { onTap(it) },
+            onInit = { success ->
+                Log.d("viewmodel", success.toString())
+                _state.value = _state.value.copy(isDigitalKebbi = !success)
+            }
+        )
+    }
+
+    /*
      *  R&T related functions
      */
 
@@ -162,7 +181,11 @@ class RobotViewModel @Inject constructor(
                     startTTS(
                         text = _state.value.lastSpokenText,
                         faceResId = _state.value.lastSpokenFaceResId,
-                        motionResId = _state.value.lastSpokenMotionResId
+                        motion = if (_state.value.isDigitalKebbi) {
+                            _state.value.lastSpokenMotionResId
+                        } else {
+                            _state.value.lastMotionString
+                        }
                     )
                 }
             }
@@ -179,13 +202,14 @@ class RobotViewModel @Inject constructor(
                             viewModelScope.launch { startSTT(keepListening = true) }
                         }
                     }
-                    else -> {
-                        viewModelScope.launch { startSTT(keepListening = false) }
-                    }
+                    else -> {}
                 }
             }
             RobotBodyPart.RIGHT_HAND -> {
-
+                if (_state.value.isDigitalKebbi)
+                    _state.value = _state.value.copy(motionResId = Robot.DIGITAL_MOTION["APPLAUD"] ?: R.raw.m_idle)
+                else
+                    nuwaUseCase.playMotion(Robot.PHYSICAL_MOTION["APPLAUD"] ?: "")
             }
             RobotBodyPart.LEFT_HAND -> {
 
@@ -474,6 +498,8 @@ class RobotViewModel @Inject constructor(
             }
             getFullTopic(Mqtt.Topic.RESPONSE) -> {
                 if (message == "[END]" || message == "[FINISH]") {
+                    stopTTS()
+                    stopSTT()
                     resetAllTempStates()
                 } else {
                     onTabletResponse(message)
@@ -505,16 +531,34 @@ class RobotViewModel @Inject constructor(
         )
     }
 
-    private fun startTTS(text: String, @RawRes faceResId: Int, @RawRes motionResId: Int) {
-        val language = _state.value.currentLanguage ?: detectLanguage(text) ?: Locale.US
+    private fun startTTS(text: String, @RawRes faceResId: Int, motion: Any) {
+        val isDigital = _state.value.isDigitalKebbi
+        val detectedLang = detectLanguage(text)
+        val language = (_state.value.currentLanguage ?: detectedLang) ?: Locale.US
         _state.value = _state.value.copy(
             isSpeaking = true,
             lastSpokenText = text,
             lastSpokenFaceResId = faceResId,
-            lastSpokenMotionResId = motionResId,
+            agentLanguage = detectedLang,
             faceResId = faceResId,
-            motionResId = motionResId
         )
+
+
+        if (motion is Int && isDigital) {
+            _state.value = _state.value.copy(
+                lastSpokenMotionResId = motion,
+                motionResId = motion
+            )
+        } else if (motion is String && !isDigital) {
+            _state.value = _state.value.copy(
+                lastMotionString = motion,
+                motionString = motion
+            )
+            if (motion.isNotEmpty()) {
+                nuwaUseCase.stopMotion()
+                nuwaUseCase.playMotion(motion)
+            }
+        }
         textToSpeechUseCase.setLanguage(language)
         textToSpeechUseCase.speak(text)
     }
@@ -553,6 +597,9 @@ class RobotViewModel @Inject constructor(
     }
 
     private fun onTTSComplete() {
+        // Send keep content setting after tts completed
+        sendArgvToTablet(if(_state.value.keepContentOn) "KEEP_CONTENT ON" else "KEEP_CONTENT OFF")
+
         viewModelScope.launch {
             val runId = _state.value.runId
             if (_state.value.timeout != null) {
@@ -567,6 +614,8 @@ class RobotViewModel @Inject constructor(
                 }
             }
         }
+        if (_state.value.timeout == 0) return
+
         val inputMode = _state.value.inputMode
         _state.value = _state.value.copy(
             isSpeaking = false,
@@ -722,6 +771,8 @@ class RobotViewModel @Inject constructor(
                 } else {
                     showToast("LLM: Unknown error occurred. Please try again.")
                     if (prompt == "Start" && _state.value.lastSpokenText.isEmpty()) {
+                        stopTTS()
+                        stopSTT()
                         resetAllTempStates()
                     }
                 }
@@ -804,13 +855,10 @@ class RobotViewModel @Inject constructor(
         } ?: ""
         val imageIds = response?.let { extractImageIdsFromMessage(it) }
 
-        // TODO: Handle annotations in Text (in ai2)
-
         // Handle tags in response
         val tags = extractTagsFromText(rawText)
         var expression = R.raw.e_normal
-        var motion = R.raw.m_idle
-        var keepContentOn: String? = null
+        var motion: Any = if (_state.value.isDigitalKebbi) R.raw.m_idle else ""
         for ((i, tag) in tags.withIndex()) {
             when (tag) {
                 "FINISH" -> {
@@ -854,10 +902,10 @@ class RobotViewModel @Inject constructor(
                     _state.value = _state.value.copy(displayOn = false)
                 }
                 "KEEP_CONTENT ON" -> {
-                    keepContentOn = "KEEP_CONTENT ON"
+                    _state.value = _state.value.copy(keepContentOn = true)
                 }
                 "KEEP_CONTENT OFF" -> {
-                    keepContentOn = "KEEP_CONTENT OFF"
+                    _state.value = _state.value.copy(keepContentOn = false)
                 }
                 "NEXT STEP" -> {
                     _state.value = _state.value.copy(timeout = 0)
@@ -865,8 +913,12 @@ class RobotViewModel @Inject constructor(
                 in Robot.EXPRESSION -> {
                     expression = Robot.EXPRESSION[tag] ?: R.raw.e_normal
                 }
-                in Robot.MOTION -> {
-                    motion = Robot.MOTION[tag] ?: R.raw.m_idle
+                in Robot.DIGITAL_MOTION -> {
+                    if (_state.value.isDigitalKebbi) {
+                        motion = Robot.DIGITAL_MOTION[tag] ?: R.raw.m_idle
+                    } else {
+                        motion = Robot.PHYSICAL_MOTION[tag] ?: ""
+                    }
                 }
                 else -> {
                     val regex = Regex("\\[TIMEOUT (\\d+)sec]")
@@ -886,7 +938,14 @@ class RobotViewModel @Inject constructor(
                  Locale.US -> "Please look at the tablet."
                  Locale.TRADITIONAL_CHINESE -> "請看平板"
                  Locale("pl", "PL") -> "Proszę spojrzeć na tablet."
-                 else -> "Please look at the tablet."
+                 else -> {
+                     when (_state.value.agentLanguage) {
+                         Locale.US -> "Please look at the tablet."
+                         Locale.TRADITIONAL_CHINESE -> "請看平板"
+                         Locale("pl", "PL") -> "Proszę spojrzeć na tablet."
+                         else -> "Please look at the tablet."
+                     }
+                 }
             }
         }
         val captionText = sanitizeTextForCaption(rawText)
@@ -894,10 +953,9 @@ class RobotViewModel @Inject constructor(
         sendImageIdsToTablet(imageIds ?: emptyList())
         sendArgvToTablet(if (_state.value.displayOn) "DISPLAY ON" else "DISPLAY OFF")
         sendCaptionToTablet(captionText)
-        sendArgvToTablet(keepContentOn ?: "")
         stopTTS()
         stopSTT()
-        startTTS(text = ttsText, faceResId = expression, motionResId = motion)
+        startTTS(text = ttsText, faceResId = expression, motion = motion)
     }
 
     private fun handleToolCallsAndSendResults(toolCalls: List<Run.ToolCall>) {

@@ -122,6 +122,10 @@ dependencies {
     // Language detection
     implementation(libs.lingua)
 
+    // NuwaSDK and related libraries
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
+    implementation(files("./libs/NuwaSDK-2021-07-08_1058_2.1.0.08_e21fe7.aar"))
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

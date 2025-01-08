@@ -32,6 +32,7 @@ import com.example.digitalrobot.R
 import com.example.digitalrobot.presentation.robot.component.TouchArea
 import com.example.digitalrobot.presentation.robot.component.VideoPlayer
 import com.example.digitalrobot.util.ToastManager
+import kotlinx.coroutines.delay
 
 @Composable
 fun RobotScreen(
@@ -57,6 +58,7 @@ fun RobotScreen(
         launcher.launch(Manifest.permission.RECORD_AUDIO)
         onEvent(RobotEvent.ConnectMqttBroker)
         onEvent(RobotEvent.InitTTS(context))
+        onEvent(RobotEvent.InitNuwaSdk(context))
     }
 
     DisposableEffect(Unit) {
@@ -72,106 +74,111 @@ fun RobotScreen(
         val screenWidth = with(density) { constraints.maxWidth.toDp() }
         val screenHeight = with(density) { constraints.maxHeight.toDp() }
 
-        VideoPlayer(
-            videoResId = state.motionResId,
-            repeat = false,
-            modifier = Modifier.fillMaxSize()
-        )
+        if (state.isDigitalKebbi) {
+            VideoPlayer(
+                videoResId = state.motionResId,
+                repeat = false,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
 
         VideoPlayer(
             videoResId = state.faceResId,
             repeat = true,
-            modifier = Modifier
-                .offset(
-                    x = screenWidth * 0.4f,
-                    y = screenHeight * 0.195f
-                )
-                .fillMaxWidth(0.215f)
-                .fillMaxHeight(0.215f)
+            modifier = if (state.isDigitalKebbi) {
+                Modifier
+                    .offset(
+                        x = screenWidth * 0.4f,
+                        y = screenHeight * 0.195f
+                    )
+                    .fillMaxWidth(0.215f)
+                    .fillMaxHeight(0.215f)
+            } else {
+                Modifier.fillMaxSize()
+            }
         )
 
-        Box (modifier = Modifier.fillMaxSize()) {
+        if (state.isDigitalKebbi) {
+            Box (modifier = Modifier.fillMaxSize()) {
 
-            val touchAreaColor = if ( state.displayTouchArea ) {
-                Color.Red.copy(alpha = 0.3f)
-            } else Color.Transparent
+                val touchAreaColor = if ( state.displayTouchArea ) {
+                    Color.Red.copy(alpha = 0.3f)
+                } else Color.Transparent
 
-            TouchArea(
-                heightPercent = 0.1f,
-                widthPercent = 0.3f,
-                color = touchAreaColor,
-                offsetXPercent = 0.35f,
-                offsetYPercent = 0.05f
-            ) {
-                onEvent(RobotEvent.TapBodyPart(RobotBodyPart.HEAD))
+                TouchArea(
+                    heightPercent = 0.1f,
+                    widthPercent = 0.3f,
+                    color = touchAreaColor,
+                    offsetXPercent = 0.35f,
+                    offsetYPercent = 0.05f
+                ) {
+                    onEvent(RobotEvent.TapBodyPart(RobotBodyPart.HEAD))
+                }
+
+                TouchArea(
+                    heightPercent = 0.3f,
+                    widthPercent = 0.2f,
+                    color = touchAreaColor,
+                    offsetXPercent = 0.4f,
+                    offsetYPercent = 0.65f
+                ) {
+                    onEvent(RobotEvent.TapBodyPart(RobotBodyPart.CHEST))
+                }
+
+                TouchArea(
+                    heightPercent = 0.1f,
+                    widthPercent = 0.075f,
+                    color = touchAreaColor,
+                    offsetXPercent = 0.275f,
+                    offsetYPercent = 0.8f
+                ) {
+                    onEvent(RobotEvent.TapBodyPart(RobotBodyPart.RIGHT_HAND))
+                }
+
+                TouchArea(
+                    heightPercent = 0.1f,
+                    widthPercent = 0.075f,
+                    color = touchAreaColor,
+                    offsetXPercent = 0.675f,
+                    offsetYPercent = 0.8f
+                ) {
+                    onEvent(RobotEvent.TapBodyPart(RobotBodyPart.LEFT_HAND))
+                }
+
+                TouchArea(
+                    heightPercent = 0.25f,
+                    widthPercent = 0.05f,
+                    color = touchAreaColor,
+                    offsetXPercent = 0.62f,
+                    offsetYPercent = 0.2f
+
+                ) {
+                    onEvent(RobotEvent.TapBodyPart(RobotBodyPart.LEFT_FACE))
+                }
+
+                TouchArea(
+                    heightPercent = 0.25f,
+                    widthPercent = 0.05f,
+                    color = touchAreaColor,
+                    offsetXPercent = 0.35f,
+                    offsetYPercent = 0.2f
+                ) {
+                    onEvent(RobotEvent.TapBodyPart(RobotBodyPart.RIGHT_FACE))
+                }
+
+                TouchArea(
+                    heightPercent = 0.1f,
+                    widthPercent = 0.2f,
+                    color = Color.Transparent,
+                    offsetXPercent = 0.4f,
+                    offsetYPercent = 0.45f
+                ) {
+                    onEvent(RobotEvent.ToggleTouchAreaDisplay)
+                }
+
             }
-
-            TouchArea(
-                heightPercent = 0.3f,
-                widthPercent = 0.2f,
-                color = touchAreaColor,
-                offsetXPercent = 0.4f,
-                offsetYPercent = 0.65f
-            ) {
-                onEvent(RobotEvent.TapBodyPart(RobotBodyPart.CHEST))
-            }
-
-            TouchArea(
-                heightPercent = 0.1f,
-                widthPercent = 0.075f,
-                color = touchAreaColor,
-                offsetXPercent = 0.275f,
-                offsetYPercent = 0.8f
-            ) {
-                onEvent(RobotEvent.TapBodyPart(RobotBodyPart.RIGHT_HAND))
-            }
-
-            TouchArea(
-                heightPercent = 0.1f,
-                widthPercent = 0.075f,
-                color = touchAreaColor,
-                offsetXPercent = 0.675f,
-                offsetYPercent = 0.8f
-            ) {
-                onEvent(RobotEvent.TapBodyPart(RobotBodyPart.LEFT_HAND))
-            }
-
-            TouchArea(
-                heightPercent = 0.25f,
-                widthPercent = 0.05f,
-                color = touchAreaColor,
-                offsetXPercent = 0.62f,
-                offsetYPercent = 0.2f
-
-            ) {
-                onEvent(RobotEvent.TapBodyPart(RobotBodyPart.LEFT_FACE))
-            }
-
-            TouchArea(
-                heightPercent = 0.25f,
-                widthPercent = 0.05f,
-                color = touchAreaColor,
-                offsetXPercent = 0.35f,
-                offsetYPercent = 0.2f
-            ) {
-                onEvent(RobotEvent.TapBodyPart(RobotBodyPart.RIGHT_FACE))
-            }
-//
-            TouchArea(
-                heightPercent = 0.1f,
-                widthPercent = 0.2f,
-                color = Color.Transparent,
-                offsetXPercent = 0.4f,
-                offsetYPercent = 0.45f
-            ) {
-                onEvent(RobotEvent.ToggleTouchAreaDisplay)
-            }
-
         }
 
     }
-
-
-
 }
 

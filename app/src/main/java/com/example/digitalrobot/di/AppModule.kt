@@ -15,6 +15,7 @@ import com.example.digitalrobot.domain.repository.IMqttRepository
 import com.example.digitalrobot.domain.repository.IRcslRepository
 import com.example.digitalrobot.domain.usecase.LanguageModelUseCase
 import com.example.digitalrobot.domain.usecase.MqttUseCase
+import com.example.digitalrobot.domain.usecase.NuwaUseCase
 import com.example.digitalrobot.domain.usecase.RcslUseCase
 import com.example.digitalrobot.domain.usecase.SpeechToTextUseCase
 import com.example.digitalrobot.domain.usecase.TextToSpeechUseCase
@@ -119,4 +120,8 @@ object AppModule {
     fun provideRcslUseCase(
         rcslRepository: IRcslRepository
     ): RcslUseCase = RcslUseCase(rcslRepository)
+
+    @Provides
+    @Singleton
+    fun provideNuwaUseCase(): NuwaUseCase = NuwaUseCase()
 }
