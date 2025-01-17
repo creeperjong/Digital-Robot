@@ -1,7 +1,9 @@
 package com.example.digitalrobot
 
+import android.Manifest
 import android.app.AlertDialog
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -15,6 +17,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.example.digitalrobot.presentation.nav.NavGraph
 import com.example.digitalrobot.ui.theme.DigitalRobotTheme
@@ -31,6 +35,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         hideSystemUi(window)
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_PHONE_STATE), 1)
+        }
 
         Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
             runOnUiThread {

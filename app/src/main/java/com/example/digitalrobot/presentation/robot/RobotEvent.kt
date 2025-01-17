@@ -32,5 +32,5 @@ sealed class RobotEvent {
 
     data object InitAssistant: RobotEvent()
 
-    data class InitNuwaSdk(val context: Context): RobotEvent()
+    data class InitNuwaSdk(val context: Context, val onInit: () -> Unit): RobotEvent()
 }

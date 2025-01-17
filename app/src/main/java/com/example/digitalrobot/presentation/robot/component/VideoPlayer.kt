@@ -1,5 +1,6 @@
 package com.example.digitalrobot.presentation.robot.component
 
+import android.graphics.Color
 import android.net.Uri
 import android.widget.Toast
 import androidx.annotation.OptIn
@@ -16,8 +17,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
@@ -58,6 +63,7 @@ fun VideoPlayer(
                         play()
                     }
                 }
+
             })
         }
 
@@ -69,13 +75,34 @@ fun VideoPlayer(
                 player = exoPlayer
                 useController = false
                 resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
+                setShutterBackgroundColor(Color.TRANSPARENT)
+                setKeepContentOnPlayerReset(true)
             }
         },
         modifier = modifier
     )
 
-    DisposableEffect(exoPlayer) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val lifecycleObserver = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> exoPlayer.pause()
+                Lifecycle.Event.ON_RESUME -> {
+                    if (!repeat && exoPlayer.playbackState == Player.STATE_ENDED) {
+                        exoPlayer.seekTo(0)
+                    }
+                    exoPlayer.playWhenReady = true
+                }
+                else -> {}
+            }
+        }
+
+        val lifecycle = lifecycleOwner.lifecycle
+        lifecycle.addObserver(lifecycleObserver)
+
         onDispose {
+            lifecycle.removeObserver(lifecycleObserver)
             exoPlayer.release()
         }
     }

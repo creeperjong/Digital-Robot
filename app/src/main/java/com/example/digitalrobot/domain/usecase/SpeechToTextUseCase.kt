@@ -18,7 +18,6 @@ class SpeechToTextUseCase (
     private val speechRecognizer: SpeechRecognizer
 ) {
     private var manualStop: Boolean = false
-    private var isListening: Boolean = false
 
     suspend fun startListening(
         keepListening: Boolean,
@@ -48,7 +47,6 @@ class SpeechToTextUseCase (
                 override fun onError(errorCode: Int) {
                     if (manualStop) {
                         manualStop = false
-                        isListening = false
                     } else {
                         speechRecognizer.startListening(intent)
                     }
@@ -62,7 +60,6 @@ class SpeechToTextUseCase (
                             speechRecognizer.startListening(intent)
                         } else {
                             onSTTDone(matches[0])
-                            isListening = false
                         }
                     } else {
                         speechRecognizer.startListening(intent)
@@ -75,16 +72,14 @@ class SpeechToTextUseCase (
 
             })
             speechRecognizer.startListening(intent)
-            isListening = true
         }
     }
 
     fun stopListening() {
         manualStop = true
         CoroutineScope(Dispatchers.Main).launch {
-            if (isListening) speechRecognizer.stopListening()
+            speechRecognizer.stopListening()
         }
     }
-
 
 }

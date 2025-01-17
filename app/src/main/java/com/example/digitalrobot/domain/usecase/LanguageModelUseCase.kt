@@ -103,7 +103,7 @@ class LanguageModelUseCase(
             )
             when (run.status) {
                 "in_progress", "queued", "cancelling" -> {
-                    if (attemptCounter == 20) break
+                    if (attemptCounter == 30) break
                     delay(1000)
                     ++attemptCounter
                 }
@@ -183,7 +183,7 @@ class LanguageModelUseCase(
                     return true
                 }
                 else -> {
-                    if (attemptCounter == 20) break
+                    if (attemptCounter == 30) break
                     delay(1000)
                     ++attemptCounter
                 }

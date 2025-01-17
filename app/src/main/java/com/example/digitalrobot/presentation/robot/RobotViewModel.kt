@@ -1,8 +1,14 @@
 package com.example.digitalrobot.presentation.robot
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
 import androidx.annotation.RawRes
+import androidx.core.content.ContextCompat
+import androidx.core.content.PermissionChecker
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.digitalrobot.R
@@ -86,15 +92,13 @@ class RobotViewModel @Inject constructor(
                 toggleTouchAreaDisplay()
             }
             is RobotEvent.InitNuwaSdk -> {
-                initNuwaSdk(context = event.context)
+                initNuwaSdk(context = event.context, onInit = event.onInit)
             }
         }
     }
 
     private fun setConnectInfos(deviceId: String) {
-        _state.value = _state.value.copy(
-            deviceId = deviceId
-        )
+        _state.value = _state.value.copy(deviceId = deviceId)
     }
 
     private fun resetAllTempStates() {
@@ -145,13 +149,31 @@ class RobotViewModel @Inject constructor(
      *  Nuwa SDK related functions
      */
 
-    private fun initNuwaSdk(context: Context) {
+    @SuppressLint("HardwareIds")
+    private fun initNuwaSdk(context: Context, onInit: () -> Unit) {
         nuwaUseCase.init(
             context = context,
             onTap = { onTap(it) },
-            onInit = { success ->
-                Log.d("viewmodel", success.toString())
-                _state.value = _state.value.copy(isDigitalKebbi = !success)
+            onTTSComplete = { onTTSComplete() },
+            onInit = {
+                val serialNumber = when {
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
+                        "UNAVAILABLE"
+                    }
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.O -> {
+                        if (ContextCompat.checkSelfPermission(
+                                context, Manifest.permission.READ_PHONE_STATE
+                            ) == PackageManager.PERMISSION_GRANTED
+                        ) {
+                            Build.getSerial()
+                        } else {
+                            "PERMISSION_DENIED"
+                        }
+                    }
+                    else -> Build.SERIAL
+                }
+                _state.value = _state.value.copy(isDigitalKebbi = false, deviceId = serialNumber)
+                onInit()
             }
         )
     }
@@ -175,6 +197,9 @@ class RobotViewModel @Inject constructor(
         }
         when (bodyPart) {
             RobotBodyPart.HEAD -> {
+                if (_state.value.inputMode == RobotInputMode.TouchTablet) {
+                    sendArgvToTablet("clear_canvas")
+                }
                 if (_state.value.inputMode != RobotInputMode.Start){
                     stopTTS()
                     stopSTT()
@@ -543,12 +568,13 @@ class RobotViewModel @Inject constructor(
             faceResId = faceResId,
         )
 
-
         if (motion is Int && isDigital) {
             _state.value = _state.value.copy(
                 lastSpokenMotionResId = motion,
                 motionResId = motion
             )
+            textToSpeechUseCase.setLanguage(language)
+            textToSpeechUseCase.speak(text)
         } else if (motion is String && !isDigital) {
             _state.value = _state.value.copy(
                 lastMotionString = motion,
@@ -558,9 +584,9 @@ class RobotViewModel @Inject constructor(
                 nuwaUseCase.stopMotion()
                 nuwaUseCase.playMotion(motion)
             }
+            nuwaUseCase.speak(text, language)
         }
-        textToSpeechUseCase.setLanguage(language)
-        textToSpeechUseCase.speak(text)
+
     }
 
     private fun stopTTS() {
@@ -921,7 +947,7 @@ class RobotViewModel @Inject constructor(
                     }
                 }
                 else -> {
-                    val regex = Regex("\\[TIMEOUT (\\d+)sec]")
+                    val regex = Regex("TIMEOUT (\\d+)sec")
                     val matchResult = regex.find(tag)
                     if (matchResult != null) {
                         _state.value = _state.value.copy(
@@ -967,7 +993,7 @@ class RobotViewModel @Inject constructor(
                         val s = getPropertyFromJsonString(
                             json = toolCall.function.arguments,
                             propertyName = "timeout_seconds",
-                            expectedType = String::class
+                            expectedType = Double::class
                         )?.toInt()
                         _state.value = _state.value.copy(timeout = s)
                         "success"

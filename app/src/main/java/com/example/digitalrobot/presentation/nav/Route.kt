@@ -5,6 +5,5 @@ sealed class Route(
     val argName: String? = null
 ) {
     data object StartUpScreen: Route(route = "StartUpScreen")
-    data object QrCodeScannerScreen: Route(route = "QrCodeScannerScreen")
     data object RobotScreen: Route(route = "RobotScreen")
 }

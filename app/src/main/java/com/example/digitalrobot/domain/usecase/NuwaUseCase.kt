@@ -7,20 +7,33 @@ import com.example.digitalrobot.presentation.robot.RobotBodyPart
 import com.nuwarobotics.service.IClientId
 import com.nuwarobotics.service.agent.NuwaRobotAPI
 import com.nuwarobotics.service.agent.RobotEventCallback
+import com.nuwarobotics.service.agent.VoiceEventCallback
+import com.nuwarobotics.service.agent.VoiceEventListener
+import java.util.Locale
 
 class NuwaUseCase {
 
     private lateinit var clientId: IClientId
     private lateinit var robotApi: NuwaRobotAPI
 
-    fun init(context: Context, onTap: (RobotBodyPart) -> Unit, onInit: (Boolean) -> Unit) {
+    fun init(
+        context: Context,
+        onTap: (RobotBodyPart) -> Unit,
+        onTTSComplete: () -> Unit,
+        onInit: () -> Unit,
+    ) {
         clientId = IClientId(context.packageName)
         robotApi = NuwaRobotAPI(context, clientId)
 
         robotApi.registerRobotEventListener(object: RobotEventCallback() {
             override fun onWikiServiceStart() {
                 robotApi.requestSensor(NuwaRobotAPI.SENSOR_TOUCH)
-                onInit(true)
+                robotApi.registerVoiceEventListener(object: VoiceEventCallback() {
+                    override fun onTTSComplete(p0: Boolean) {
+                        onTTSComplete()
+                    }
+                })
+                onInit()
             }
 
             override fun onTouchEvent(type: Int, touch: Int) {
@@ -49,6 +62,9 @@ class NuwaUseCase {
         }
     }
 
+    fun speak(text: String, language: Locale) {
+        robotApi.startTTS(text, language.toString())
+    }
 
     fun release() {
         robotApi.release()

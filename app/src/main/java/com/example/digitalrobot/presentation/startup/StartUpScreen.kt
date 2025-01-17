@@ -23,7 +23,6 @@ import com.example.digitalrobot.ui.theme.DigitalRobotTheme
 fun StartUpScreen(
     state: StartUpState,
     onEvent: (StartUpEvent) -> Unit,
-    navigateToScanner: () -> Unit,
     navigateToRobot: (StartUpState) -> Unit
 ) {
 
@@ -72,7 +71,6 @@ private fun StartUpScreenPreview() {
         StartUpScreen(
             state = StartUpState(),
             onEvent = {},
-            navigateToScanner = {},
             navigateToRobot = {}
         )
     }
