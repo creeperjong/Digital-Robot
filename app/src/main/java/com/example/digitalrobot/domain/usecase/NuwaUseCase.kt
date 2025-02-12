@@ -66,6 +66,25 @@ class NuwaUseCase {
         robotApi.startTTS(text, language.toString())
     }
 
+    fun stopSpeaking() {
+        robotApi.stopTTS()
+    }
+
+    fun setLedColor(bodyPart: RobotBodyPart, r: Int, g: Int, b: Int) {
+        var ledId = when (bodyPart) {
+            RobotBodyPart.HEAD, RobotBodyPart.LEFT_FACE, RobotBodyPart.RIGHT_FACE -> 1
+            RobotBodyPart.CHEST -> 2
+            RobotBodyPart.LEFT_HAND -> 3
+            RobotBodyPart.RIGHT_HAND -> 4
+        }
+        robotApi.disableSystemLED()
+        robotApi.setLedColor(ledId, 255, r, g, b)
+    }
+
+    fun clearLed() {
+        robotApi.enableSystemLED()
+    }
+
     fun release() {
         robotApi.release()
     }

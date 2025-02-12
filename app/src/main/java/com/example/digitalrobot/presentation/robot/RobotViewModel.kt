@@ -197,7 +197,8 @@ class RobotViewModel @Inject constructor(
         }
         when (bodyPart) {
             RobotBodyPart.HEAD -> {
-                if (_state.value.inputMode == RobotInputMode.TouchTablet) {
+                if (_state.value.inputMode is RobotInputMode.ScanOrTouch &&
+                    (_state.value.inputMode as RobotInputMode.ScanOrTouch).touchTablet) {
                     sendArgvToTablet("clear_canvas")
                 }
                 if (_state.value.inputMode != RobotInputMode.Start){
@@ -231,10 +232,7 @@ class RobotViewModel @Inject constructor(
                 }
             }
             RobotBodyPart.RIGHT_HAND -> {
-                if (_state.value.isDigitalKebbi)
-                    _state.value = _state.value.copy(motionResId = Robot.DIGITAL_MOTION["APPLAUD"] ?: R.raw.m_idle)
-                else
-                    nuwaUseCase.playMotion(Robot.PHYSICAL_MOTION["APPLAUD"] ?: "")
+
             }
             RobotBodyPart.LEFT_HAND -> {
 
@@ -273,9 +271,11 @@ class RobotViewModel @Inject constructor(
     private fun onScan(uid: String) {
         val inputMode = _state.value.inputMode
         when (inputMode) {
-            is RobotInputMode.ScanObject -> {
-                sendPromptAndHandleResponse(uid)
-                sendInputResponseToTablet(uid)
+            is RobotInputMode.ScanOrTouch -> {
+                if (inputMode.scanObject) {
+                    sendPromptAndHandleResponse(uid)
+                    sendInputResponseToTablet(uid)
+                }
             }
             else -> {}
         }
@@ -285,9 +285,11 @@ class RobotViewModel @Inject constructor(
         val inputMode = _state.value.inputMode
         stopSTT()
         when (inputMode) {
-            is RobotInputMode.TouchTablet -> {
-                sendPromptAndHandleResponse(message)
-                sendInputResponseToTablet(message)
+            is RobotInputMode.ScanOrTouch -> {
+                if (inputMode.touchTablet) {
+                    sendPromptAndHandleResponse(message)
+                    sendInputResponseToTablet(message)
+                }
             }
             else -> {}
         }
@@ -590,7 +592,11 @@ class RobotViewModel @Inject constructor(
     }
 
     private fun stopTTS() {
-        textToSpeechUseCase.stop()
+        if (_state.value.isDigitalKebbi) {
+            textToSpeechUseCase.stop()
+        } else {
+            nuwaUseCase.stopSpeaking()
+        }
         _state.value = _state.value.copy(
             isSpeaking = false,
             faceResId = R.raw.e_smile,
@@ -652,8 +658,10 @@ class RobotViewModel @Inject constructor(
             is RobotInputMode.AutoSTT -> {
                 viewModelScope.launch { startSTT() }
             }
-            is RobotInputMode.TouchTablet -> {
-                sendArgvToTablet("wait_for_tap")
+            is RobotInputMode.ScanOrTouch -> {
+                if (inputMode.touchTablet) {
+                    sendArgvToTablet("wait_for_tap")
+                }
             }
             else -> {}
         }
@@ -670,6 +678,7 @@ class RobotViewModel @Inject constructor(
     private suspend fun startSTT(keepListening: Boolean = false) {
         val language = _state.value.currentLanguage
         _state.value = _state.value.copy(isListening = true)
+        nuwaUseCase.setLedColor(RobotBodyPart.CHEST, 255, 255, 0)
         speechToTextUseCase.startListening(
             language = language ?: Locale.TRADITIONAL_CHINESE,
             keepListening = keepListening,
@@ -680,6 +689,7 @@ class RobotViewModel @Inject constructor(
 
     private fun stopSTT() {
         speechToTextUseCase.stopListening()
+        nuwaUseCase.clearLed()
         _state.value = _state.value.copy(
             isListening = false
         )
@@ -687,6 +697,7 @@ class RobotViewModel @Inject constructor(
 
     private fun onSTTDone(result: String) {
         _state.value = _state.value.copy(isListening = false)
+        nuwaUseCase.clearLed()
         sendInputResponseToTablet(result)
         sendPromptAndHandleResponse(result)
     }
@@ -910,10 +921,28 @@ class RobotViewModel @Inject constructor(
                     )
                 }
                 "INPUT SCAN" -> {
-                    _state.value = _state.value.copy(inputMode = RobotInputMode.ScanObject)
+                    if (_state.value.inputMode is RobotInputMode.ScanOrTouch) {
+                        (_state.value.inputMode as RobotInputMode.ScanOrTouch).scanObject = true
+                    } else {
+                        _state.value = _state.value.copy(
+                            inputMode = RobotInputMode.ScanOrTouch(
+                                scanObject = true,
+                                touchTablet = false
+                            )
+                        )
+                    }
                 }
                 "INPUT TOUCH" -> {
-                    _state.value = _state.value.copy(inputMode = RobotInputMode.TouchTablet)
+                    if (_state.value.inputMode is RobotInputMode.ScanOrTouch) {
+                        (_state.value.inputMode as RobotInputMode.ScanOrTouch).touchTablet = true
+                    } else {
+                        _state.value = _state.value.copy(
+                            inputMode = RobotInputMode.ScanOrTouch(
+                                scanObject = false,
+                                touchTablet = true
+                            )
+                        )
+                    }
                 }
                 "TTS ON" -> {
                     _state.value = _state.value.copy(ttsOn = true)
@@ -940,10 +969,10 @@ class RobotViewModel @Inject constructor(
                     expression = Robot.EXPRESSION[tag] ?: R.raw.e_normal
                 }
                 in Robot.DIGITAL_MOTION -> {
-                    if (_state.value.isDigitalKebbi) {
-                        motion = Robot.DIGITAL_MOTION[tag] ?: R.raw.m_idle
+                    motion = if (_state.value.isDigitalKebbi) {
+                        Robot.DIGITAL_MOTION[tag] ?: R.raw.m_idle
                     } else {
-                        motion = Robot.PHYSICAL_MOTION[tag] ?: ""
+                        Robot.PHYSICAL_MOTION[tag] ?: ""
                     }
                 }
                 else -> {

@@ -8,9 +8,7 @@ sealed class RobotInputMode {
 
     data object AutoSTT: RobotInputMode()
 
-    data object ScanObject: RobotInputMode()
+    data class ScanOrTouch(var scanObject: Boolean, var touchTablet: Boolean): RobotInputMode()
 
     data class TouchSensor(val targetBodyParts: List<RobotBodyPart>): RobotInputMode()
-
-    data object TouchTablet: RobotInputMode()
 }

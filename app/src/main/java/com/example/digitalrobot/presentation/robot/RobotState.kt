@@ -20,6 +20,8 @@ data class RobotState(
     @RawRes val motionResId: Int = R.raw.m_idle,
     val motionString: String = "",
     val inputMode: RobotInputMode = RobotInputMode.Start,
+    val canScan: Boolean = false,
+    val canTouch: Boolean = false,
     val ttsOn: Boolean = true,
     val displayOn: Boolean = true,
     val keepContentOn: Boolean = true,

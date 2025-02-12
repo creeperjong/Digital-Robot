@@ -31,6 +31,8 @@ class SpeechToTextUseCase (
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, language.toLanguageTag())
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, language.toString())
                 putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, keepListening)
+                putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, false)
+                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2000)
             }
 
             speechRecognizer.setRecognitionListener(object: RecognitionListener {
